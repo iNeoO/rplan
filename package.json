@@ -1,0 +1,24 @@
+{
+  "name": "rplan",
+  "module": "index.ts",
+  "type": "module",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "yarn dev:frontend & yarn run dev:backend",
+    "dev:frontend": "yarn workspace @rplan/frontend dev",
+    "dev:backend": "yarn workspace @rplan/backend dev",
+    "prisma": "tsx ./scripts/prisma.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "private": true,
+  "workspaces": [
+    "packages/frontend",
+    "packages/backend"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
+    "target": "ESNext",
+    "moduleResolution": "node",
+    "paths": {
+      "prisma/*": ["./prisma/*"]
+    },
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "noErrorTruncation": true,
+    "types": ["vitest/globals"]
+  },
+  "watchOptions": {
+    "excludeFiles": ["prisma/zod/index.ts", "schema.d.ts"]
+  }
+}

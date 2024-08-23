@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator zod {
+  provider = "zod-prisma-types"
+  output   = "./zod"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PG_URL")
+}
+
+model Coord {
+  id         String   @id @default(cuid())
+  longitude  String
+  latitude   String
+  street     String
+  city       String
+  country    String
+  postalCode String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  step       Step     @relation(fields: [stepId], references: [id])
+  stepId     String   @unique
+}
+
+model Step {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  coord       Coord?
+  plan        Plan     @relation(fields: [planId], references: [id])
+  planId      String
+}
+
+model Plan {
+  id            String                 @id @default(cuid())
+  name          String
+  description   String
+  departureDate DateTime
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  steps         Step[]
+  users         UserWithPermissions[]
+  invitations   PermissionInvitation[]
+}
+
+model User {
+  id                String                @id @default(cuid())
+  email             String                @unique /// @zod.string.email({ message: 'Invalid email address' }),
+  username          String                @unique
+  password          String
+  isEmailValid      Boolean
+  createdAt         DateTime              @default(now())
+  lastLoginOn       DateTime?
+  plans             UserWithPermissions[]
+  passwordForgotten PasswordForgotten[]
+}
+
+model PasswordForgotten {
+  token     String   @id
+  createdAt DateTime @default(now())
+  isUsed    Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+}
+
+model PermissionInvitation {
+  token              String   @unique
+  email              String   /// @zod.string.email({ message: 'Invalid email address' }),
+  invitedBy          String   /// @zod.string.email({ message: 'Invalid email address' }),
+  createdAt          DateTime @default(now())
+  hasWritePermission Boolean
+  isUsed             Boolean  @default(false)
+  plan               Plan     @relation(fields: [planId], references: [id])
+  planId             String
+
+  @@id([email, planId])
+}
+
+model UserWithPermissions {
+  plan               Plan     @relation(fields: [planId], references: [id])
+  planId             String
+  user               User     @relation(fields: [userId], references: [id])
+  userId             String
+  hasWritePermission Boolean
+  isCreator          Boolean
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@id([userId, planId])
+}
