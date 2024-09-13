@@ -15,6 +15,13 @@ import {
   updateIsUsedPasswordForgotten,
 } from '../services/passwordForgotten.service.ts';
 import {
+  getInvitation,
+  acceptInvitation,
+} from '../services/invitation.service.ts';
+import {
+  addPermissionForPlan,
+} from '../services/userWithPermissions.service.ts';
+import {
   verify,
   signEmailValidation,
 } from '../services/jsonwebtoken.service.ts';
@@ -73,7 +80,9 @@ const postUserRoute = createRoute({
 });
 
 app.openapi(postUserRoute, async (c) => {
-  const { username, password, email } = c.req.valid('json');
+  const {
+    username, password, email, token,
+  } = c.req.valid('json');
   let newUser: User;
   try {
     newUser = await createUser({ username, password, email });
@@ -87,13 +96,20 @@ app.openapi(postUserRoute, async (c) => {
     }
     throw error;
   }
-  const token = signEmailValidation(newUser.id);
+  if (token) {
+    const invitation = await getInvitation(token);
+    if (invitation) {
+      addPermissionForPlan(newUser.id, invitation.planId, invitation.hasWritePermission);
+      acceptInvitation(token);
+    }
+  }
+  const emailToken = signEmailValidation(newUser.id);
   const mailer = new MailService();
   mailer.sendMail({
     to: newUser.email,
     subject: 'Registration on rplan',
     text: 'a text',
-    html: `<b>${token}</b>`,
+    html: `<b>${emailToken}</b>`,
   });
   return c.json({
     id: newUser.id,

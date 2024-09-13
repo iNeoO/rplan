@@ -2,10 +2,12 @@ import { OpenAPIHono, createRoute } from '@hono/zod-openapi';
 import { authMiddleware } from '../middlewares/auth.middleware.ts';
 import type { AuthVariables } from '../interfaces/auth.d.ts';
 
+import withReadPermissions from './plan/withReadPermissions.route.ts';
+import withWritePermissions from './plan/withWritePermissions.route.ts';
+
 import {
   createPlan,
   getPlans,
-  getPlan,
   formatPlans,
   formatPlan,
 } from '../services/plan.service.ts';
@@ -14,12 +16,7 @@ import {
   PostPlanDtoSchema,
   GetPlanReturnSchema,
   GetPlansReturnSchema,
-  GetPlanParamsSchema,
 } from '../schemas/plan.schema.ts';
-
-import {
-  PostInvitationDtoSchema,
-} from '../schemas/permissionInvitation.schema.ts';
 
 import { ErrorSchema } from '../schemas/error.schema.ts';
 
@@ -73,97 +70,24 @@ const getPlansRoute = createRoute({
         },
       },
     },
+    403: {
+      description: 'Invalid format',
+      content: {
+        'application/json': {
+          schema: ErrorSchema,
+        },
+      },
+    },
   },
 });
 
 app.openapi(getPlansRoute, async (c) => {
   const userId = c.get('userId');
   const plans = await getPlans(userId);
-
   return c.json(formatPlans(plans));
 });
 
-const getPlanRoute = createRoute({
-  method: 'get',
-  path: '/{id}',
-  tags: ['plan'],
-  request: {
-    params: GetPlanParamsSchema,
-  },
-  responses: {
-    200: {
-      description: 'Respond after getting plan',
-      content: {
-        'application/json': {
-          schema: GetPlanReturnSchema,
-        },
-      },
-    },
-    404: {
-      description: 'Plan not found',
-      content: {
-        'application/json': {
-          schema: ErrorSchema,
-        },
-      },
-    },
-  },
-});
-
-app.openapi(getPlanRoute, async (c) => {
-  const userId = c.get('userId');
-  const { id } = c.req.valid('param');
-  const plan = await getPlan(userId, id);
-
-  if (!plan) {
-    return c.json({
-      error: 'Plan not found',
-    }, 404);
-  }
-
-  return c.json(formatPlan(plan));
-});
-
-const inviteUser = createRoute({
-  method: 'get',
-  path: '/{id}/invite',
-  tags: ['plan'],
-  request: {
-    params: GetPlanParamsSchema,
-    body: {
-      content: {
-        'application/json': {
-          schema: PostInvitationDtoSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: 'Respond after inviting someone to join a plan',
-      content: {
-        'application/json': {
-          schema: {},
-        },
-      },
-    },
-    404: {
-      description: 'Plan not found',
-      content: {
-        'application/json': {
-          schema: ErrorSchema,
-        },
-      },
-    },
-    403: {
-      description: 'Plan no enough permissions or invitation already sent',
-      content: {
-        'application/json': {
-          schema: ErrorSchema,
-        },
-      },
-    },
-  },
-});
+app.route('/', withReadPermissions);
+app.route('/', withWritePermissions);
 
 export default app;

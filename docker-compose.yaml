@@ -5,7 +5,7 @@ services:
       dockerfile: ./packages/backend/Dockerfile
     container_name: rplan-backend
     ports:
-      - "4000:4000"
+      - "4010:4000"
     environment:
       NODE_ENV: development
       PG_URL: postgresql://${PG_RPLAN_USER}:${PG_RPLAN_PASSWORD}@postgres:5432/${PG_DB}
@@ -34,7 +34,7 @@ services:
       dockerfile: ./packages/frontend/Dockerfile
     container_name: rplan-frontend
     ports:
-      - "3000:3000"
+      - "4000:3000"
     environment:
       - NODE_ENV=development
     volumes:
@@ -43,7 +43,7 @@ services:
     command: yarn dev:frontend
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: rplan-db
     environment:
       POSTGRES_USER: ${PG_RPLAN_USER}
@@ -61,20 +61,20 @@ services:
 
   maildev:
     image: maildev/maildev:2.1.0
-    container_name: maildev
+    container_name: rplan-maildev
     ports:
-      - "1080:1080"
-      - "1025:1025"
+      - "4020:1080"
+      - "4025:1025"
 
-  pghero:
-    image: ankane/pghero
-    container_name: pghero
-    environment:
-      - DATABASE_URL=postgresql://${PG_RPLAN_USER}:${PG_RPLAN_PASSWORD}@postgres:5432/${PG_DB}
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
+  # pghero:
+  #   image: ankane/pghero
+  #   container_name: rplan-pghero
+  #   environment:
+  #     - DATABASE_URL=postgresql://${PG_RPLAN_USER}:${PG_RPLAN_PASSWORD}@postgres:5432/${PG_DB}
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - postgres
 
 volumes:
   pgdata:

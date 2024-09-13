@@ -10,6 +10,7 @@ declare global {
       AUTH_SECRET_KEY: string;
       PASSWORD_FORGOTTEN_SECRET_KEY: string;
       EMAIL_VALIDATION_SECRET_KEY: string;
+      INVITATION_SECRET_KEY: string;
       TOKEN_PASSWORD_FORGOTTEN_EXPIRATION: string;
       COOKIE_NAME: string;
       COOKIE_BIS_NAME: string;

@@ -1,5 +1,5 @@
 import * as jwt from 'jsonwebtoken';
-import type { User } from '@prisma/client';
+import type { User, Plan } from '@prisma/client';
 
 declare module 'jsonwebtoken' {
   export interface IDJwtPayload extends jwt.JwtPayload {
@@ -42,3 +42,7 @@ export const signPasswordForgotten = (
 export const signEmailValidation = (
   userId: User['id'],
 ) => jwt.sign({ id: userId }, process.env.EMAIL_VALIDATION_SECRET_KEY);
+
+export const signInvitationValidation = (
+  planId: Plan['id'],
+) => jwt.sign({ planId }, process.env.EMAIL_VALIDATION_SECRET_KEY);
