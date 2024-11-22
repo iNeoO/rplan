@@ -3,6 +3,7 @@ import { setCookie } from 'hono/cookie';
 
 import {
   LoginSchema,
+  StatusSchema,
 } from '../schemas/auth.schema.ts';
 import {
   GetUserSchema,
@@ -11,7 +12,10 @@ import {
 import { ErrorSchema } from '../schemas/error.schema.ts';
 
 import { getUserIfPasswordMatch, updateUserLastLogin } from '../services/user.service.ts';
-import { signAuthCookie } from '../services/jsonwebtoken.service.ts';
+import { createSession } from '../services/session.service.ts';
+import { signAuthCookie, signRefreshCookie } from '../services/jsonwebtoken.service.ts';
+
+import { authMiddleware, error401UnauthorizedResponse } from '../middlewares/auth.middleware.ts';
 
 const app = new OpenAPIHono();
 
@@ -30,7 +34,7 @@ export const loginRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'Respond a message',
+      description: 'User data after login',
       content: {
         'application/json': {
           schema: GetUserSchema,
@@ -75,27 +79,41 @@ app.openapi(
 
     const user = await updateUserLastLogin(userChecked.id);
 
-    const date = new Date(
-      new Date().getTime() + parseInt(process.env.COOKIE_EXPIRATION, 10) * 1000,
+    const authTokenDate = new Date(
+      new Date().getTime() + parseInt(process.env.COOKIE_AUTH_EXPIRATION, 10),
     );
 
-    const token = signAuthCookie(user.id);
+    const refreshTokenDate = new Date(
+      new Date().getTime() + parseInt(process.env.COOKIE_REFRESH_EXPIRATION, 10),
+    );
 
-    setCookie(c, process.env.COOKIE_NAME, token, {
+    const refreshToken = signRefreshCookie(user.id, refreshTokenDate);
+    const authToken = signAuthCookie(user.id, authTokenDate);
+
+    setCookie(c, process.env.COOKIE_AUTH_NAME, authToken, {
       path: '/',
       secure: true,
       httpOnly: true,
-      expires: date,
+      expires: authTokenDate,
       sameSite: 'Strict',
     });
 
-    setCookie(c, process.env.COOKIE_BIS_NAME, 'rplan', {
+    setCookie(c, process.env.COOKIE_REFRESH_NAME, refreshToken, {
       path: '/',
       secure: true,
-      httpOnly: false,
-      expires: date,
+      httpOnly: true,
+      expires: refreshTokenDate,
       sameSite: 'Strict',
     });
+
+    try {
+      await createSession({ userId: user.id, token: authToken });
+    } catch (error) {
+      console.error('Error creating session:', error);
+      return c.json({
+        error: 'Internal server error',
+      }, 500);
+    }
 
     return c.json({
       id: user.id,
@@ -105,6 +123,30 @@ app.openapi(
       lastLoginOn: user.lastLoginOn,
     });
   },
+);
+
+app.use(authMiddleware);
+
+export const statusRoute = createRoute({
+  method: 'get',
+  path: '/status',
+  tags: ['auth'],
+  responses: {
+    200: {
+      description: 'User is logged',
+      content: {
+        'application/json': {
+          schema: StatusSchema,
+        },
+      },
+    },
+    ...error401UnauthorizedResponse,
+  },
+});
+
+app.openapi(
+  statusRoute,
+  (c) => c.json({ isAuthenticated: true }),
 );
 
 export default app;

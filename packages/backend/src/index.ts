@@ -8,6 +8,7 @@ import { serve } from '@hono/node-server';
 import authRoutes from './routes/auth.route.ts';
 import userRoutes from './routes/user.route.ts';
 import planRoutes from './routes/plan.route.ts';
+import invitationRoutes from './routes/invitation.route.ts';
 
 const app = new OpenAPIHono();
 
@@ -16,6 +17,7 @@ app.use(logger());
 app.route('auth', authRoutes);
 app.route('user', userRoutes);
 app.route('plan', planRoutes);
+app.route('invitation', invitationRoutes);
 
 app.get(
   '/ui',

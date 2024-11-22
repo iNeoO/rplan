@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute } from '@hono/zod-openapi';
 import { Prisma, User } from '@prisma/client';
 
-import { authMiddleware } from '../middlewares/auth.middleware.ts';
+import { authMiddleware, error401UnauthorizedResponse } from '../middlewares/auth.middleware.ts';
 
 import {
   createUser,
@@ -14,6 +14,13 @@ import {
   getPasswordForgotten,
   updateIsUsedPasswordForgotten,
 } from '../services/passwordForgotten.service.ts';
+import {
+  getInvitation,
+  acceptInvitation,
+} from '../services/invitation.service.ts';
+import {
+  addPermissionForPlan,
+} from '../services/userWithPermissions.service.ts';
 import {
   verify,
   signEmailValidation,
@@ -54,7 +61,7 @@ const postUserRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'Respond after creating an user',
+      description: 'Response after creating an user',
       content: {
         'application/json': {
           schema: PostUserSchema,
@@ -73,7 +80,9 @@ const postUserRoute = createRoute({
 });
 
 app.openapi(postUserRoute, async (c) => {
-  const { username, password, email } = c.req.valid('json');
+  const {
+    username, password, email, token,
+  } = c.req.valid('json');
   let newUser: User;
   try {
     newUser = await createUser({ username, password, email });
@@ -87,13 +96,20 @@ app.openapi(postUserRoute, async (c) => {
     }
     throw error;
   }
-  const token = signEmailValidation(newUser.id);
+  if (token) {
+    const invitation = await getInvitation(token);
+    if (invitation) {
+      addPermissionForPlan(newUser.id, invitation.planId, invitation.hasWritePermission);
+      acceptInvitation(token);
+    }
+  }
+  const emailToken = signEmailValidation(newUser.id);
   const mailer = new MailService();
   mailer.sendMail({
     to: newUser.email,
     subject: 'Registration on rplan',
     text: 'a text',
-    html: `<b>${token}</b>`,
+    html: `<b>${emailToken}</b>`,
   });
   return c.json({
     id: newUser.id,
@@ -118,7 +134,7 @@ const validEmail = createRoute({
   },
   responses: {
     200: {
-      description: 'Respond after validating an email for an user',
+      description: 'Response after validating an email for an user',
       content: {
         'application/json': {
           schema: ValidEmailSchema,
@@ -176,7 +192,7 @@ const requestResetPassword = createRoute({
   },
   responses: {
     200: {
-      description: 'Respond always email sent',
+      description: 'Response always email sent',
       content: {
         'application/json': {
           schema: RequestResetPasswordSchema,
@@ -278,13 +294,14 @@ const getUserRoute = createRoute({
   tags: ['user'],
   responses: {
     200: {
-      description: 'Respond after getting his user',
+      description: 'Response after getting his user',
       content: {
         'application/json': {
           schema: GetUserSchema,
         },
       },
     },
+    ...error401UnauthorizedResponse,
     404: {
       description: 'User not found',
       content: {
