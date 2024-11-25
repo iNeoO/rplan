@@ -16,7 +16,6 @@ export const createUser = async (userDto: PostUserDto): Promise<User> => {
       email: userDto.email,
       username: userDto.username,
       password: hash,
-      createdAt: new Date().toISOString(),
       isEmailValid: false,
     },
   });

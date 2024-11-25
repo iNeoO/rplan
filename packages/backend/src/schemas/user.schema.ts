@@ -6,7 +6,9 @@ export const PostUserDtoSchema = UserSchema.pick({
   email: true,
   username: true,
   password: true,
-});
+}).merge(z.object({
+  token: z.string().optional(),
+}));
 
 export type PostUserDto = Z.infer<typeof PostUserDtoSchema>;
 

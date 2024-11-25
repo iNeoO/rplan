@@ -5,6 +5,6 @@ export const ResetPasswordDtoSchema = UserSchema.pick(
   { password: true },
 ).merge(PasswordForgottenSchema.pick({ token: true }));
 
-export const ResetPasswordSchema = {
+export const ResetPasswordSchema = z.object({
   message: z.string(),
-};
+});
