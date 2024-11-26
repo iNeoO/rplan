@@ -1,11 +1,12 @@
 services:
   backend:
-    build:
-      context: .
-      dockerfile: ./packages/backend/Dockerfile
     container_name: rplan-backend
+    build: 
+      dockerfile: ./packages/backend/Dockerfile
+    depends_on:
+      - postgres
     ports:
-      - "4000:4000"
+      - "4010:4000"
     environment:
       NODE_ENV: development
       PG_URL: postgresql://${PG_RPLAN_USER}:${PG_RPLAN_PASSWORD}@postgres:5432/${PG_DB}
@@ -14,37 +15,50 @@ services:
       SMTP_AUTH_USER: ${SMTP_AUTH_USER}
       SMTP_AUTH_PASS: ${SMTP_AUTH_PASS}
       SALT_ROUNDS: ${SALT_ROUNDS}
-      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY}
       PASSWORD_FORGOTTEN_SECRET_KEY: ${PASSWORD_FORGOTTEN_SECRET_KEY}
       EMAIL_VALIDATION_SECRET_KEY: ${EMAIL_VALIDATION_SECRET_KEY}
       TOKEN_PASSWORD_FORGOTTEN_EXPIRATION: ${TOKEN_PASSWORD_FORGOTTEN_EXPIRATION}
-      COOKIE_NAME: ${COOKIE_NAME}
-      COOKIE_BIS_NAME: ${COOKIE_BIS_NAME}
-      COOKIE_EXPIRATION: ${COOKIE_EXPIRATION}
-    depends_on:
-      - postgres
-    volumes:
-      - ./packages/backend:/app/packages/backend
-      - /app/node_modules
-    command: yarn dev:backend
+      COOKIE_AUTH_NAME: ${COOKIE_AUTH_NAME}
+      COOKIE_AUTH_EXPIRATION: ${COOKIE_AUTH_EXPIRATION}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY}
+      COOKIE_REFRESH_NAME: ${COOKIE_REFRESH_NAME}
+      COOKIE_REFRESH_EXPIRATION: ${COOKIE_REFRESH_EXPIRATION}
+      REFRESH_SECRET_KEY: ${REFRESH_SECRET_KEY}
+    develop:
+      watch:
+        - action: sync
+          path: ./packages/backend
+          target: /app/packages/backend
+          ignore:
+          - node_modules/
+        - action: rebuild
+          path: package.json
+        - action: rebuild
+          path: ./packages/backend/package.json
 
   frontend:
-    build:
-      context: .
-      dockerfile: ./packages/frontend/Dockerfile
     container_name: rplan-frontend
+    build:
+      dockerfile: ./packages/frontend/Dockerfile
+    depends_on:
+      - backend
     ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-    volumes:
-      - ./packages/frontend:/app/packages/frontend
-      - /app/node_modules
-    command: yarn dev:frontend
+      - "4000:3000"
+    develop:
+      watch:
+        - action: sync
+          path: ./packages/frontend
+          target: /app/packages/frontend
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: package.json
+        - action: rebuild
+          path: ./packages/frontend/package.json
 
   postgres:
-    image: postgres:15-alpine
-    container_name: rplan-db
+    image: postgres:16-alpine
+    container_name: rplan-db-dev
     environment:
       POSTGRES_USER: ${PG_RPLAN_USER}
       POSTGRES_PASSWORD: ${PG_RPLAN_PASSWORD}
@@ -61,20 +75,10 @@ services:
 
   maildev:
     image: maildev/maildev:2.1.0
-    container_name: maildev
+    container_name: rplan-maildev-dev
     ports:
-      - "1080:1080"
-      - "1025:1025"
-
-  pghero:
-    image: ankane/pghero
-    container_name: pghero
-    environment:
-      - DATABASE_URL=postgresql://${PG_RPLAN_USER}:${PG_RPLAN_PASSWORD}@postgres:5432/${PG_DB}
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
+      - "4020:1080"
+      - "4025:1025"
 
 volumes:
   pgdata:
