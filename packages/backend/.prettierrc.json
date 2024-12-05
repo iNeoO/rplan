@@ -10,12 +10,11 @@
   "insertPragma": false,
   "requirePragma": false,
   "quoteProps": "as-needed",
-  "trailingComma": "none",
   "eslintIntegration": true,
-  "parser": "babel",
+  "parser": "typescript",
   "jsxSingleQuote": false,
   "vueIndentScriptAndStyle": false,
-  "semi": false,
+  "semi": true,
   "tabWidth": 2,
   "singleQuote": true
 }

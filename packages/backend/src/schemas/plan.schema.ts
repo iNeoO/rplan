@@ -18,10 +18,12 @@ export const PostPlanDtoSchema = PlanSchema.pick({
   name: true,
   description: true,
   departureDate: true,
-}).merge(z.object({
-  departureDate: z.string().datetime(),
-  steps: z.array(PostStepDtoSchema),
-}));
+}).merge(
+  z.object({
+    departureDate: z.string().datetime(),
+    steps: z.array(PostStepDtoSchema),
+  }),
+);
 
 export type PostPlanDto = Z.infer<typeof PostPlanDtoSchema>;
 
@@ -34,31 +36,39 @@ const DefaultPlan = PlanSchema.pick({
   updatedAt: true,
 });
 
-export const GetPlanSchema = DefaultPlan.merge(z.object({
-  steps: GetStepSchema.array(),
-  users: GetUserWithPermission.array(),
-}));
+export const GetPlanSchema = DefaultPlan.merge(
+  z.object({
+    steps: GetStepSchema.array(),
+    users: GetUserWithPermission.array(),
+  }),
+);
 
-export const GetPlanReturnSchema = DefaultPlan.merge(z.object({
-  departureDate: z.string().datetime(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  steps: GetStepReturnSchema.array(),
-  users: GetUserWithPermissionReturn.array(),
-}));
+export const GetPlanReturnSchema = DefaultPlan.merge(
+  z.object({
+    departureDate: z.string().datetime(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+    steps: GetStepReturnSchema.array(),
+    users: GetUserWithPermissionReturn.array(),
+  }),
+);
 
-export const GetPlansSchema = DefaultPlan.merge(z.object({
-  stepsCount: z.number(),
-  usersCount: z.number(),
-})).array();
+export const GetPlansSchema = DefaultPlan.merge(
+  z.object({
+    stepsCount: z.number(),
+    usersCount: z.number(),
+  }),
+).array();
 
-export const GetPlansReturnSchema = DefaultPlan.merge(z.object({
-  departureDate: z.string().datetime(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  stepsCount: z.number(),
-  usersCount: z.number(),
-})).array();
+export const GetPlansReturnSchema = DefaultPlan.merge(
+  z.object({
+    departureDate: z.string().datetime(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+    stepsCount: z.number(),
+    usersCount: z.number(),
+  }),
+).array();
 
 export const GetPlanParamsSchema = PlanSchema.pick({
   id: true,

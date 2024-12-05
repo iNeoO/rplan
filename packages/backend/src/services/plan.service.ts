@@ -17,7 +17,7 @@ export const createPlan = async (userId: User['id'], planDto: PostPlanDto) => {
       ...planDto,
       steps: {
         create: [
-          ...planDto.steps.map((step) => ({
+          ...planDto.steps.map(step => ({
             ...step,
             coord: undefined,
             ...(step.coord ? { coord: { create: { ...step.coord } } } : {}),
@@ -38,45 +38,47 @@ export const createPlan = async (userId: User['id'], planDto: PostPlanDto) => {
   return prisma.plan.create(newPlan);
 };
 
-export const getPlans = async (userId: User['id']) => prisma.plan.findMany({
-  where: {
-    users: {
-      every: {
-        userId,
+export const getPlans = async (userId: User['id']) =>
+  prisma.plan.findMany({
+    where: {
+      users: {
+        every: {
+          userId,
+        },
       },
     },
-  },
-  select: {
-    id: true,
-    name: true,
-    description: true,
-    departureDate: true,
-    createdAt: true,
-    updatedAt: true,
-    _count: {
-      select: {
-        users: true,
-        steps: true,
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      departureDate: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          users: true,
+          steps: true,
+        },
       },
     },
-  },
-});
+  });
 
-export const getPlan = async (userId: User['id'], id: Plan['id']) => prisma.plan.findUnique({
-  where: {
-    id,
-    users: {
-      every: {
-        userId,
+export const getPlan = async (userId: User['id'], id: Plan['id']) =>
+  prisma.plan.findUnique({
+    where: {
+      id,
+      users: {
+        every: {
+          userId,
+        },
       },
     },
-  },
-  select: planSelect,
-});
+    select: planSelect,
+  });
 
 export const formatPlan = (plan: MyPlanPayload) => ({
   ...plan,
-  users: plan.users.map((user) => ({
+  users: plan.users.map(user => ({
     userId: user.userId,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -86,13 +88,14 @@ export const formatPlan = (plan: MyPlanPayload) => ({
   })),
 });
 
-export const formatPlans = (plans: MyPlansPayload) => plans.map((plan) => ({
-  id: plan.id,
-  name: plan.name,
-  description: plan.description,
-  departureDate: plan.departureDate,
-  createdAt: plan.createdAt,
-  updatedAt: plan.updatedAt,
-  usersCount: plan._count.users,
-  stepsCount: plan._count.steps,
-}));
+export const formatPlans = (plans: MyPlansPayload) =>
+  plans.map(plan => ({
+    id: plan.id,
+    name: plan.name,
+    description: plan.description,
+    departureDate: plan.departureDate,
+    createdAt: plan.createdAt,
+    updatedAt: plan.updatedAt,
+    usersCount: plan._count.users,
+    stepsCount: plan._count.steps,
+  }));

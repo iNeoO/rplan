@@ -14,23 +14,29 @@ export const createPasswordForgotten = async (userId: User['id']) => {
   });
 };
 
-export const getPasswordForgotten = (token: PasswordForgotten['token']) => prisma.passwordForgotten.findUnique({
-  where: {
-    token,
-  },
-});
+export const getPasswordForgotten = (token: PasswordForgotten['token']) =>
+  prisma.passwordForgotten.findUnique({
+    where: {
+      token,
+    },
+  });
 
-export const updateIsUsedPasswordForgotten = (token: PasswordForgotten['token'], isUsed: PasswordForgotten['isUsed']) => prisma.passwordForgotten.update({
-  where: {
-    token,
-  },
-  data: {
-    isUsed,
-  },
-});
+export const updateIsUsedPasswordForgotten = (
+  token: PasswordForgotten['token'],
+  isUsed: PasswordForgotten['isUsed'],
+) =>
+  prisma.passwordForgotten.update({
+    where: {
+      token,
+    },
+    data: {
+      isUsed,
+    },
+  });
 
-export const deletePasswordForgotten = (token: PasswordForgotten['token']) => prisma.passwordForgotten.delete({
-  where: {
-    token,
-  },
-});
+export const deletePasswordForgotten = (token: PasswordForgotten['token']) =>
+  prisma.passwordForgotten.delete({
+    where: {
+      token,
+    },
+  });

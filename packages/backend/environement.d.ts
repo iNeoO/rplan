@@ -7,13 +7,16 @@ declare global {
       SMTP_AUTH_USER: string;
       SMTP_AUTH_PASS: string;
       SALT_ROUNDS: string;
-      AUTH_SECRET_KEY: string;
       PASSWORD_FORGOTTEN_SECRET_KEY: string;
       EMAIL_VALIDATION_SECRET_KEY: string;
+      INVITATION_SECRET_KEY: string;
       TOKEN_PASSWORD_FORGOTTEN_EXPIRATION: string;
-      COOKIE_NAME: string;
-      COOKIE_BIS_NAME: string;
-      COOKIE_EXPIRATION: string;
+      COOKIE_AUTH_NAME: string;
+      COOKIE_AUTH_EXPIRATION: string;
+      AUTH_SECRET_KEY: string;
+      COOKIE_REFRESH_NAME: string;
+      COOKIE_REFRESH_EXPIRATION: string;
+      REFRESH_SECRET_KEY: string;
     }
   }
 }

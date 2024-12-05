@@ -20,9 +20,11 @@ export const PlanScalarFieldEnumSchema = z.enum(['id','name','description','depa
 
 export const UserScalarFieldEnumSchema = z.enum(['id','email','username','password','isEmailValid','createdAt','lastLoginOn']);
 
+export const SessionScalarFieldEnumSchema = z.enum(['id','userId','token','createdAt']);
+
 export const PasswordForgottenScalarFieldEnumSchema = z.enum(['token','createdAt','isUsed','userId']);
 
-export const PermissionInvitationScalarFieldEnumSchema = z.enum(['token','email','invitedBy','createdAt','hasWritePermission','isUsed','planId']);
+export const InvitationScalarFieldEnumSchema = z.enum(['id','token','email','invitedById','message','status','hasWritePermission','createdAt','expiresAt','acceptedAt','invitationType','planId']);
 
 export const UserWithPermissionsScalarFieldEnumSchema = z.enum(['planId','userId','hasWritePermission','isCreator','createdAt','updatedAt']);
 
@@ -31,6 +33,15 @@ export const SortOrderSchema = z.enum(['asc','desc']);
 export const QueryModeSchema = z.enum(['default','insensitive']);
 
 export const NullsOrderSchema = z.enum(['first','last']);
+
+export const InvitationStatusSchema = z.enum(['PENDING','ACCEPTED','EXPIRED']);
+
+export type InvitationStatusType = `${z.infer<typeof InvitationStatusSchema>}`
+
+export const InvitationTypeSchema = z.enum(['EMAIL','LINK']);
+
+export type InvitationTypeType = `${z.infer<typeof InvitationTypeSchema>}`
+
 /////////////////////////////////////////
 // MODELS
 /////////////////////////////////////////
@@ -106,6 +117,19 @@ export const UserSchema = z.object({
 export type User = z.infer<typeof UserSchema>
 
 /////////////////////////////////////////
+// SESSION SCHEMA
+/////////////////////////////////////////
+
+export const SessionSchema = z.object({
+  id: z.string().cuid(),
+  userId: z.string(),
+  token: z.string(),
+  createdAt: z.coerce.date(),
+})
+
+export type Session = z.infer<typeof SessionSchema>
+
+/////////////////////////////////////////
 // PASSWORD FORGOTTEN SCHEMA
 /////////////////////////////////////////
 
@@ -119,26 +143,28 @@ export const PasswordForgottenSchema = z.object({
 export type PasswordForgotten = z.infer<typeof PasswordForgottenSchema>
 
 /////////////////////////////////////////
-// PERMISSION INVITATION SCHEMA
+// INVITATION SCHEMA
 /////////////////////////////////////////
 
-export const PermissionInvitationSchema = z.object({
+export const InvitationSchema = z.object({
+  status: InvitationStatusSchema,
+  invitationType: InvitationTypeSchema,
+  id: z.string().cuid(),
   token: z.string(),
   /**
    * ,
    */
-  email: z.string().email({ message: 'Invalid email address' }),
-  /**
-   * ,
-   */
-  invitedBy: z.string().email({ message: 'Invalid email address' }),
-  createdAt: z.coerce.date(),
+  email: z.string().email({ message: 'Invalid email address' }).nullable(),
+  invitedById: z.string(),
+  message: z.string().nullable(),
   hasWritePermission: z.boolean(),
-  isUsed: z.boolean(),
+  createdAt: z.coerce.date(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().nullable(),
   planId: z.string(),
 })
 
-export type PermissionInvitation = z.infer<typeof PermissionInvitationSchema>
+export type Invitation = z.infer<typeof InvitationSchema>
 
 /////////////////////////////////////////
 // USER WITH PERMISSIONS SCHEMA
@@ -217,7 +243,7 @@ export const StepSelectSchema: z.ZodType<Prisma.StepSelect> = z.object({
 export const PlanIncludeSchema: z.ZodType<Prisma.PlanInclude> = z.object({
   steps: z.union([z.boolean(),z.lazy(() => StepFindManyArgsSchema)]).optional(),
   users: z.union([z.boolean(),z.lazy(() => UserWithPermissionsFindManyArgsSchema)]).optional(),
-  invitations: z.union([z.boolean(),z.lazy(() => PermissionInvitationFindManyArgsSchema)]).optional(),
+  invitations: z.union([z.boolean(),z.lazy(() => InvitationFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => PlanCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
@@ -245,7 +271,7 @@ export const PlanSelectSchema: z.ZodType<Prisma.PlanSelect> = z.object({
   updatedAt: z.boolean().optional(),
   steps: z.union([z.boolean(),z.lazy(() => StepFindManyArgsSchema)]).optional(),
   users: z.union([z.boolean(),z.lazy(() => UserWithPermissionsFindManyArgsSchema)]).optional(),
-  invitations: z.union([z.boolean(),z.lazy(() => PermissionInvitationFindManyArgsSchema)]).optional(),
+  invitations: z.union([z.boolean(),z.lazy(() => InvitationFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => PlanCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
@@ -255,6 +281,8 @@ export const PlanSelectSchema: z.ZodType<Prisma.PlanSelect> = z.object({
 export const UserIncludeSchema: z.ZodType<Prisma.UserInclude> = z.object({
   plans: z.union([z.boolean(),z.lazy(() => UserWithPermissionsFindManyArgsSchema)]).optional(),
   passwordForgotten: z.union([z.boolean(),z.lazy(() => PasswordForgottenFindManyArgsSchema)]).optional(),
+  invitations: z.union([z.boolean(),z.lazy(() => InvitationFindManyArgsSchema)]).optional(),
+  Sessions: z.union([z.boolean(),z.lazy(() => SessionFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => UserCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
@@ -270,6 +298,8 @@ export const UserCountOutputTypeArgsSchema: z.ZodType<Prisma.UserCountOutputType
 export const UserCountOutputTypeSelectSchema: z.ZodType<Prisma.UserCountOutputTypeSelect> = z.object({
   plans: z.boolean().optional(),
   passwordForgotten: z.boolean().optional(),
+  invitations: z.boolean().optional(),
+  Sessions: z.boolean().optional(),
 }).strict();
 
 export const UserSelectSchema: z.ZodType<Prisma.UserSelect> = z.object({
@@ -282,7 +312,29 @@ export const UserSelectSchema: z.ZodType<Prisma.UserSelect> = z.object({
   lastLoginOn: z.boolean().optional(),
   plans: z.union([z.boolean(),z.lazy(() => UserWithPermissionsFindManyArgsSchema)]).optional(),
   passwordForgotten: z.union([z.boolean(),z.lazy(() => PasswordForgottenFindManyArgsSchema)]).optional(),
+  invitations: z.union([z.boolean(),z.lazy(() => InvitationFindManyArgsSchema)]).optional(),
+  Sessions: z.union([z.boolean(),z.lazy(() => SessionFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => UserCountOutputTypeArgsSchema)]).optional(),
+}).strict()
+
+// SESSION
+//------------------------------------------------------
+
+export const SessionIncludeSchema: z.ZodType<Prisma.SessionInclude> = z.object({
+  user: z.union([z.boolean(),z.lazy(() => UserArgsSchema)]).optional(),
+}).strict()
+
+export const SessionArgsSchema: z.ZodType<Prisma.SessionDefaultArgs> = z.object({
+  select: z.lazy(() => SessionSelectSchema).optional(),
+  include: z.lazy(() => SessionIncludeSchema).optional(),
+}).strict();
+
+export const SessionSelectSchema: z.ZodType<Prisma.SessionSelect> = z.object({
+  id: z.boolean().optional(),
+  userId: z.boolean().optional(),
+  token: z.boolean().optional(),
+  createdAt: z.boolean().optional(),
+  user: z.union([z.boolean(),z.lazy(() => UserArgsSchema)]).optional(),
 }).strict()
 
 // PASSWORD FORGOTTEN
@@ -305,26 +357,33 @@ export const PasswordForgottenSelectSchema: z.ZodType<Prisma.PasswordForgottenSe
   user: z.union([z.boolean(),z.lazy(() => UserArgsSchema)]).optional(),
 }).strict()
 
-// PERMISSION INVITATION
+// INVITATION
 //------------------------------------------------------
 
-export const PermissionInvitationIncludeSchema: z.ZodType<Prisma.PermissionInvitationInclude> = z.object({
+export const InvitationIncludeSchema: z.ZodType<Prisma.InvitationInclude> = z.object({
+  invitedBy: z.union([z.boolean(),z.lazy(() => UserArgsSchema)]).optional(),
   plan: z.union([z.boolean(),z.lazy(() => PlanArgsSchema)]).optional(),
 }).strict()
 
-export const PermissionInvitationArgsSchema: z.ZodType<Prisma.PermissionInvitationDefaultArgs> = z.object({
-  select: z.lazy(() => PermissionInvitationSelectSchema).optional(),
-  include: z.lazy(() => PermissionInvitationIncludeSchema).optional(),
+export const InvitationArgsSchema: z.ZodType<Prisma.InvitationDefaultArgs> = z.object({
+  select: z.lazy(() => InvitationSelectSchema).optional(),
+  include: z.lazy(() => InvitationIncludeSchema).optional(),
 }).strict();
 
-export const PermissionInvitationSelectSchema: z.ZodType<Prisma.PermissionInvitationSelect> = z.object({
+export const InvitationSelectSchema: z.ZodType<Prisma.InvitationSelect> = z.object({
+  id: z.boolean().optional(),
   token: z.boolean().optional(),
   email: z.boolean().optional(),
-  invitedBy: z.boolean().optional(),
-  createdAt: z.boolean().optional(),
+  invitedById: z.boolean().optional(),
+  message: z.boolean().optional(),
+  status: z.boolean().optional(),
   hasWritePermission: z.boolean().optional(),
-  isUsed: z.boolean().optional(),
+  createdAt: z.boolean().optional(),
+  expiresAt: z.boolean().optional(),
+  acceptedAt: z.boolean().optional(),
+  invitationType: z.boolean().optional(),
   planId: z.boolean().optional(),
+  invitedBy: z.union([z.boolean(),z.lazy(() => UserArgsSchema)]).optional(),
   plan: z.union([z.boolean(),z.lazy(() => PlanArgsSchema)]).optional(),
 }).strict()
 
@@ -537,7 +596,7 @@ export const PlanWhereInputSchema: z.ZodType<Prisma.PlanWhereInput> = z.object({
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   steps: z.lazy(() => StepListRelationFilterSchema).optional(),
   users: z.lazy(() => UserWithPermissionsListRelationFilterSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationListRelationFilterSchema).optional()
+  invitations: z.lazy(() => InvitationListRelationFilterSchema).optional()
 }).strict();
 
 export const PlanOrderByWithRelationInputSchema: z.ZodType<Prisma.PlanOrderByWithRelationInput> = z.object({
@@ -549,7 +608,7 @@ export const PlanOrderByWithRelationInputSchema: z.ZodType<Prisma.PlanOrderByWit
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
   steps: z.lazy(() => StepOrderByRelationAggregateInputSchema).optional(),
   users: z.lazy(() => UserWithPermissionsOrderByRelationAggregateInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationOrderByRelationAggregateInputSchema).optional()
+  invitations: z.lazy(() => InvitationOrderByRelationAggregateInputSchema).optional()
 }).strict();
 
 export const PlanWhereUniqueInputSchema: z.ZodType<Prisma.PlanWhereUniqueInput> = z.object({
@@ -567,7 +626,7 @@ export const PlanWhereUniqueInputSchema: z.ZodType<Prisma.PlanWhereUniqueInput> 
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   steps: z.lazy(() => StepListRelationFilterSchema).optional(),
   users: z.lazy(() => UserWithPermissionsListRelationFilterSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationListRelationFilterSchema).optional()
+  invitations: z.lazy(() => InvitationListRelationFilterSchema).optional()
 }).strict());
 
 export const PlanOrderByWithAggregationInputSchema: z.ZodType<Prisma.PlanOrderByWithAggregationInput> = z.object({
@@ -606,7 +665,9 @@ export const UserWhereInputSchema: z.ZodType<Prisma.UserWhereInput> = z.object({
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   lastLoginOn: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
   plans: z.lazy(() => UserWithPermissionsListRelationFilterSchema).optional(),
-  passwordForgotten: z.lazy(() => PasswordForgottenListRelationFilterSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenListRelationFilterSchema).optional(),
+  invitations: z.lazy(() => InvitationListRelationFilterSchema).optional(),
+  Sessions: z.lazy(() => SessionListRelationFilterSchema).optional()
 }).strict();
 
 export const UserOrderByWithRelationInputSchema: z.ZodType<Prisma.UserOrderByWithRelationInput> = z.object({
@@ -618,7 +679,9 @@ export const UserOrderByWithRelationInputSchema: z.ZodType<Prisma.UserOrderByWit
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   lastLoginOn: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
   plans: z.lazy(() => UserWithPermissionsOrderByRelationAggregateInputSchema).optional(),
-  passwordForgotten: z.lazy(() => PasswordForgottenOrderByRelationAggregateInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenOrderByRelationAggregateInputSchema).optional(),
+  invitations: z.lazy(() => InvitationOrderByRelationAggregateInputSchema).optional(),
+  Sessions: z.lazy(() => SessionOrderByRelationAggregateInputSchema).optional()
 }).strict();
 
 export const UserWhereUniqueInputSchema: z.ZodType<Prisma.UserWhereUniqueInput> = z.union([
@@ -661,7 +724,9 @@ export const UserWhereUniqueInputSchema: z.ZodType<Prisma.UserWhereUniqueInput> 
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   lastLoginOn: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
   plans: z.lazy(() => UserWithPermissionsListRelationFilterSchema).optional(),
-  passwordForgotten: z.lazy(() => PasswordForgottenListRelationFilterSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenListRelationFilterSchema).optional(),
+  invitations: z.lazy(() => InvitationListRelationFilterSchema).optional(),
+  Sessions: z.lazy(() => SessionListRelationFilterSchema).optional()
 }).strict());
 
 export const UserOrderByWithAggregationInputSchema: z.ZodType<Prisma.UserOrderByWithAggregationInput> = z.object({
@@ -688,6 +753,68 @@ export const UserScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.UserScal
   isEmailValid: z.union([ z.lazy(() => BoolWithAggregatesFilterSchema),z.boolean() ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
   lastLoginOn: z.union([ z.lazy(() => DateTimeNullableWithAggregatesFilterSchema),z.coerce.date() ]).optional().nullable(),
+}).strict();
+
+export const SessionWhereInputSchema: z.ZodType<Prisma.SessionWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => SessionWhereInputSchema),z.lazy(() => SessionWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => SessionWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => SessionWhereInputSchema),z.lazy(() => SessionWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  userId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  token: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  user: z.union([ z.lazy(() => UserRelationFilterSchema),z.lazy(() => UserWhereInputSchema) ]).optional(),
+}).strict();
+
+export const SessionOrderByWithRelationInputSchema: z.ZodType<Prisma.SessionOrderByWithRelationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  userId: z.lazy(() => SortOrderSchema).optional(),
+  token: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  user: z.lazy(() => UserOrderByWithRelationInputSchema).optional()
+}).strict();
+
+export const SessionWhereUniqueInputSchema: z.ZodType<Prisma.SessionWhereUniqueInput> = z.union([
+  z.object({
+    id: z.string().cuid(),
+    token: z.string()
+  }),
+  z.object({
+    id: z.string().cuid(),
+  }),
+  z.object({
+    token: z.string(),
+  }),
+])
+.and(z.object({
+  id: z.string().cuid().optional(),
+  token: z.string().optional(),
+  AND: z.union([ z.lazy(() => SessionWhereInputSchema),z.lazy(() => SessionWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => SessionWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => SessionWhereInputSchema),z.lazy(() => SessionWhereInputSchema).array() ]).optional(),
+  userId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  user: z.union([ z.lazy(() => UserRelationFilterSchema),z.lazy(() => UserWhereInputSchema) ]).optional(),
+}).strict());
+
+export const SessionOrderByWithAggregationInputSchema: z.ZodType<Prisma.SessionOrderByWithAggregationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  userId: z.lazy(() => SortOrderSchema).optional(),
+  token: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  _count: z.lazy(() => SessionCountOrderByAggregateInputSchema).optional(),
+  _max: z.lazy(() => SessionMaxOrderByAggregateInputSchema).optional(),
+  _min: z.lazy(() => SessionMinOrderByAggregateInputSchema).optional()
+}).strict();
+
+export const SessionScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.SessionScalarWhereWithAggregatesInput> = z.object({
+  AND: z.union([ z.lazy(() => SessionScalarWhereWithAggregatesInputSchema),z.lazy(() => SessionScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  OR: z.lazy(() => SessionScalarWhereWithAggregatesInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => SessionScalarWhereWithAggregatesInputSchema),z.lazy(() => SessionScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  userId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  token: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
 }).strict();
 
 export const PasswordForgottenWhereInputSchema: z.ZodType<Prisma.PasswordForgottenWhereInput> = z.object({
@@ -743,81 +870,108 @@ export const PasswordForgottenScalarWhereWithAggregatesInputSchema: z.ZodType<Pr
   userId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
 }).strict();
 
-export const PermissionInvitationWhereInputSchema: z.ZodType<Prisma.PermissionInvitationWhereInput> = z.object({
-  AND: z.union([ z.lazy(() => PermissionInvitationWhereInputSchema),z.lazy(() => PermissionInvitationWhereInputSchema).array() ]).optional(),
-  OR: z.lazy(() => PermissionInvitationWhereInputSchema).array().optional(),
-  NOT: z.union([ z.lazy(() => PermissionInvitationWhereInputSchema),z.lazy(() => PermissionInvitationWhereInputSchema).array() ]).optional(),
+export const InvitationWhereInputSchema: z.ZodType<Prisma.InvitationWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => InvitationWhereInputSchema),z.lazy(() => InvitationWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => InvitationWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => InvitationWhereInputSchema),z.lazy(() => InvitationWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   token: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  email: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  invitedBy: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  email: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
+  invitedById: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  message: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
+  status: z.union([ z.lazy(() => EnumInvitationStatusFilterSchema),z.lazy(() => InvitationStatusSchema) ]).optional(),
   hasWritePermission: z.union([ z.lazy(() => BoolFilterSchema),z.boolean() ]).optional(),
-  isUsed: z.union([ z.lazy(() => BoolFilterSchema),z.boolean() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  expiresAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  acceptedAt: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => EnumInvitationTypeFilterSchema),z.lazy(() => InvitationTypeSchema) ]).optional(),
   planId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  invitedBy: z.union([ z.lazy(() => UserRelationFilterSchema),z.lazy(() => UserWhereInputSchema) ]).optional(),
   plan: z.union([ z.lazy(() => PlanRelationFilterSchema),z.lazy(() => PlanWhereInputSchema) ]).optional(),
 }).strict();
 
-export const PermissionInvitationOrderByWithRelationInputSchema: z.ZodType<Prisma.PermissionInvitationOrderByWithRelationInput> = z.object({
+export const InvitationOrderByWithRelationInputSchema: z.ZodType<Prisma.InvitationOrderByWithRelationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
   token: z.lazy(() => SortOrderSchema).optional(),
-  email: z.lazy(() => SortOrderSchema).optional(),
-  invitedBy: z.lazy(() => SortOrderSchema).optional(),
-  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  email: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
+  invitedById: z.lazy(() => SortOrderSchema).optional(),
+  message: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
+  status: z.lazy(() => SortOrderSchema).optional(),
   hasWritePermission: z.lazy(() => SortOrderSchema).optional(),
-  isUsed: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  expiresAt: z.lazy(() => SortOrderSchema).optional(),
+  acceptedAt: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
+  invitationType: z.lazy(() => SortOrderSchema).optional(),
   planId: z.lazy(() => SortOrderSchema).optional(),
+  invitedBy: z.lazy(() => UserOrderByWithRelationInputSchema).optional(),
   plan: z.lazy(() => PlanOrderByWithRelationInputSchema).optional()
 }).strict();
 
-export const PermissionInvitationWhereUniqueInputSchema: z.ZodType<Prisma.PermissionInvitationWhereUniqueInput> = z.union([
+export const InvitationWhereUniqueInputSchema: z.ZodType<Prisma.InvitationWhereUniqueInput> = z.union([
   z.object({
-    email_planId: z.lazy(() => PermissionInvitationEmailPlanIdCompoundUniqueInputSchema),
+    id: z.string().cuid(),
     token: z.string()
   }),
   z.object({
-    email_planId: z.lazy(() => PermissionInvitationEmailPlanIdCompoundUniqueInputSchema),
+    id: z.string().cuid(),
   }),
   z.object({
     token: z.string(),
   }),
 ])
 .and(z.object({
+  id: z.string().cuid().optional(),
   token: z.string().optional(),
-  email_planId: z.lazy(() => PermissionInvitationEmailPlanIdCompoundUniqueInputSchema).optional(),
-  AND: z.union([ z.lazy(() => PermissionInvitationWhereInputSchema),z.lazy(() => PermissionInvitationWhereInputSchema).array() ]).optional(),
-  OR: z.lazy(() => PermissionInvitationWhereInputSchema).array().optional(),
-  NOT: z.union([ z.lazy(() => PermissionInvitationWhereInputSchema),z.lazy(() => PermissionInvitationWhereInputSchema).array() ]).optional(),
-  email: z.union([ z.lazy(() => StringFilterSchema),z.string().email({ message: 'Invalid email address' }) ]).optional(),
-  invitedBy: z.union([ z.lazy(() => StringFilterSchema),z.string().email({ message: 'Invalid email address' }) ]).optional(),
-  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  AND: z.union([ z.lazy(() => InvitationWhereInputSchema),z.lazy(() => InvitationWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => InvitationWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => InvitationWhereInputSchema),z.lazy(() => InvitationWhereInputSchema).array() ]).optional(),
+  email: z.union([ z.lazy(() => StringNullableFilterSchema),z.string().email({ message: 'Invalid email address' }) ]).optional().nullable(),
+  invitedById: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  message: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
+  status: z.union([ z.lazy(() => EnumInvitationStatusFilterSchema),z.lazy(() => InvitationStatusSchema) ]).optional(),
   hasWritePermission: z.union([ z.lazy(() => BoolFilterSchema),z.boolean() ]).optional(),
-  isUsed: z.union([ z.lazy(() => BoolFilterSchema),z.boolean() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  expiresAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  acceptedAt: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => EnumInvitationTypeFilterSchema),z.lazy(() => InvitationTypeSchema) ]).optional(),
   planId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  invitedBy: z.union([ z.lazy(() => UserRelationFilterSchema),z.lazy(() => UserWhereInputSchema) ]).optional(),
   plan: z.union([ z.lazy(() => PlanRelationFilterSchema),z.lazy(() => PlanWhereInputSchema) ]).optional(),
 }).strict());
 
-export const PermissionInvitationOrderByWithAggregationInputSchema: z.ZodType<Prisma.PermissionInvitationOrderByWithAggregationInput> = z.object({
+export const InvitationOrderByWithAggregationInputSchema: z.ZodType<Prisma.InvitationOrderByWithAggregationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
   token: z.lazy(() => SortOrderSchema).optional(),
-  email: z.lazy(() => SortOrderSchema).optional(),
-  invitedBy: z.lazy(() => SortOrderSchema).optional(),
-  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  email: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
+  invitedById: z.lazy(() => SortOrderSchema).optional(),
+  message: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
+  status: z.lazy(() => SortOrderSchema).optional(),
   hasWritePermission: z.lazy(() => SortOrderSchema).optional(),
-  isUsed: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  expiresAt: z.lazy(() => SortOrderSchema).optional(),
+  acceptedAt: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
+  invitationType: z.lazy(() => SortOrderSchema).optional(),
   planId: z.lazy(() => SortOrderSchema).optional(),
-  _count: z.lazy(() => PermissionInvitationCountOrderByAggregateInputSchema).optional(),
-  _max: z.lazy(() => PermissionInvitationMaxOrderByAggregateInputSchema).optional(),
-  _min: z.lazy(() => PermissionInvitationMinOrderByAggregateInputSchema).optional()
+  _count: z.lazy(() => InvitationCountOrderByAggregateInputSchema).optional(),
+  _max: z.lazy(() => InvitationMaxOrderByAggregateInputSchema).optional(),
+  _min: z.lazy(() => InvitationMinOrderByAggregateInputSchema).optional()
 }).strict();
 
-export const PermissionInvitationScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.PermissionInvitationScalarWhereWithAggregatesInput> = z.object({
-  AND: z.union([ z.lazy(() => PermissionInvitationScalarWhereWithAggregatesInputSchema),z.lazy(() => PermissionInvitationScalarWhereWithAggregatesInputSchema).array() ]).optional(),
-  OR: z.lazy(() => PermissionInvitationScalarWhereWithAggregatesInputSchema).array().optional(),
-  NOT: z.union([ z.lazy(() => PermissionInvitationScalarWhereWithAggregatesInputSchema),z.lazy(() => PermissionInvitationScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+export const InvitationScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.InvitationScalarWhereWithAggregatesInput> = z.object({
+  AND: z.union([ z.lazy(() => InvitationScalarWhereWithAggregatesInputSchema),z.lazy(() => InvitationScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  OR: z.lazy(() => InvitationScalarWhereWithAggregatesInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => InvitationScalarWhereWithAggregatesInputSchema),z.lazy(() => InvitationScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
   token: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
-  email: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
-  invitedBy: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
-  createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+  email: z.union([ z.lazy(() => StringNullableWithAggregatesFilterSchema),z.string() ]).optional().nullable(),
+  invitedById: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  message: z.union([ z.lazy(() => StringNullableWithAggregatesFilterSchema),z.string() ]).optional().nullable(),
+  status: z.union([ z.lazy(() => EnumInvitationStatusWithAggregatesFilterSchema),z.lazy(() => InvitationStatusSchema) ]).optional(),
   hasWritePermission: z.union([ z.lazy(() => BoolWithAggregatesFilterSchema),z.boolean() ]).optional(),
-  isUsed: z.union([ z.lazy(() => BoolWithAggregatesFilterSchema),z.boolean() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+  expiresAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+  acceptedAt: z.union([ z.lazy(() => DateTimeNullableWithAggregatesFilterSchema),z.coerce.date() ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => EnumInvitationTypeWithAggregatesFilterSchema),z.lazy(() => InvitationTypeSchema) ]).optional(),
   planId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
 }).strict();
 
@@ -1067,7 +1221,7 @@ export const PlanCreateInputSchema: z.ZodType<Prisma.PlanCreateInput> = z.object
   updatedAt: z.coerce.date().optional(),
   steps: z.lazy(() => StepCreateNestedManyWithoutPlanInputSchema).optional(),
   users: z.lazy(() => UserWithPermissionsCreateNestedManyWithoutPlanInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationCreateNestedManyWithoutPlanInputSchema).optional()
+  invitations: z.lazy(() => InvitationCreateNestedManyWithoutPlanInputSchema).optional()
 }).strict();
 
 export const PlanUncheckedCreateInputSchema: z.ZodType<Prisma.PlanUncheckedCreateInput> = z.object({
@@ -1079,7 +1233,7 @@ export const PlanUncheckedCreateInputSchema: z.ZodType<Prisma.PlanUncheckedCreat
   updatedAt: z.coerce.date().optional(),
   steps: z.lazy(() => StepUncheckedCreateNestedManyWithoutPlanInputSchema).optional(),
   users: z.lazy(() => UserWithPermissionsUncheckedCreateNestedManyWithoutPlanInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUncheckedCreateNestedManyWithoutPlanInputSchema).optional()
+  invitations: z.lazy(() => InvitationUncheckedCreateNestedManyWithoutPlanInputSchema).optional()
 }).strict();
 
 export const PlanUpdateInputSchema: z.ZodType<Prisma.PlanUpdateInput> = z.object({
@@ -1091,7 +1245,7 @@ export const PlanUpdateInputSchema: z.ZodType<Prisma.PlanUpdateInput> = z.object
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   steps: z.lazy(() => StepUpdateManyWithoutPlanNestedInputSchema).optional(),
   users: z.lazy(() => UserWithPermissionsUpdateManyWithoutPlanNestedInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUpdateManyWithoutPlanNestedInputSchema).optional()
+  invitations: z.lazy(() => InvitationUpdateManyWithoutPlanNestedInputSchema).optional()
 }).strict();
 
 export const PlanUncheckedUpdateInputSchema: z.ZodType<Prisma.PlanUncheckedUpdateInput> = z.object({
@@ -1103,7 +1257,7 @@ export const PlanUncheckedUpdateInputSchema: z.ZodType<Prisma.PlanUncheckedUpdat
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   steps: z.lazy(() => StepUncheckedUpdateManyWithoutPlanNestedInputSchema).optional(),
   users: z.lazy(() => UserWithPermissionsUncheckedUpdateManyWithoutPlanNestedInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUncheckedUpdateManyWithoutPlanNestedInputSchema).optional()
+  invitations: z.lazy(() => InvitationUncheckedUpdateManyWithoutPlanNestedInputSchema).optional()
 }).strict();
 
 export const PlanCreateManyInputSchema: z.ZodType<Prisma.PlanCreateManyInput> = z.object({
@@ -1142,7 +1296,9 @@ export const UserCreateInputSchema: z.ZodType<Prisma.UserCreateInput> = z.object
   createdAt: z.coerce.date().optional(),
   lastLoginOn: z.coerce.date().optional().nullable(),
   plans: z.lazy(() => UserWithPermissionsCreateNestedManyWithoutUserInputSchema).optional(),
-  passwordForgotten: z.lazy(() => PasswordForgottenCreateNestedManyWithoutUserInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenCreateNestedManyWithoutUserInputSchema).optional(),
+  invitations: z.lazy(() => InvitationCreateNestedManyWithoutInvitedByInputSchema).optional(),
+  Sessions: z.lazy(() => SessionCreateNestedManyWithoutUserInputSchema).optional()
 }).strict();
 
 export const UserUncheckedCreateInputSchema: z.ZodType<Prisma.UserUncheckedCreateInput> = z.object({
@@ -1154,7 +1310,9 @@ export const UserUncheckedCreateInputSchema: z.ZodType<Prisma.UserUncheckedCreat
   createdAt: z.coerce.date().optional(),
   lastLoginOn: z.coerce.date().optional().nullable(),
   plans: z.lazy(() => UserWithPermissionsUncheckedCreateNestedManyWithoutUserInputSchema).optional(),
-  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedCreateNestedManyWithoutUserInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedCreateNestedManyWithoutUserInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUncheckedCreateNestedManyWithoutInvitedByInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUncheckedCreateNestedManyWithoutUserInputSchema).optional()
 }).strict();
 
 export const UserUpdateInputSchema: z.ZodType<Prisma.UserUpdateInput> = z.object({
@@ -1166,7 +1324,9 @@ export const UserUpdateInputSchema: z.ZodType<Prisma.UserUpdateInput> = z.object
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   plans: z.lazy(() => UserWithPermissionsUpdateManyWithoutUserNestedInputSchema).optional(),
-  passwordForgotten: z.lazy(() => PasswordForgottenUpdateManyWithoutUserNestedInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenUpdateManyWithoutUserNestedInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUpdateManyWithoutInvitedByNestedInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUpdateManyWithoutUserNestedInputSchema).optional()
 }).strict();
 
 export const UserUncheckedUpdateInputSchema: z.ZodType<Prisma.UserUncheckedUpdateInput> = z.object({
@@ -1178,7 +1338,9 @@ export const UserUncheckedUpdateInputSchema: z.ZodType<Prisma.UserUncheckedUpdat
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   plans: z.lazy(() => UserWithPermissionsUncheckedUpdateManyWithoutUserNestedInputSchema).optional(),
-  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedUpdateManyWithoutUserNestedInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedUpdateManyWithoutUserNestedInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUncheckedUpdateManyWithoutInvitedByNestedInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUncheckedUpdateManyWithoutUserNestedInputSchema).optional()
 }).strict();
 
 export const UserCreateManyInputSchema: z.ZodType<Prisma.UserCreateManyInput> = z.object({
@@ -1209,6 +1371,54 @@ export const UserUncheckedUpdateManyInputSchema: z.ZodType<Prisma.UserUncheckedU
   isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+}).strict();
+
+export const SessionCreateInputSchema: z.ZodType<Prisma.SessionCreateInput> = z.object({
+  id: z.string().cuid().optional(),
+  token: z.string(),
+  createdAt: z.coerce.date().optional(),
+  user: z.lazy(() => UserCreateNestedOneWithoutSessionsInputSchema)
+}).strict();
+
+export const SessionUncheckedCreateInputSchema: z.ZodType<Prisma.SessionUncheckedCreateInput> = z.object({
+  id: z.string().cuid().optional(),
+  userId: z.string(),
+  token: z.string(),
+  createdAt: z.coerce.date().optional()
+}).strict();
+
+export const SessionUpdateInputSchema: z.ZodType<Prisma.SessionUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  user: z.lazy(() => UserUpdateOneRequiredWithoutSessionsNestedInputSchema).optional()
+}).strict();
+
+export const SessionUncheckedUpdateInputSchema: z.ZodType<Prisma.SessionUncheckedUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  userId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const SessionCreateManyInputSchema: z.ZodType<Prisma.SessionCreateManyInput> = z.object({
+  id: z.string().cuid().optional(),
+  userId: z.string(),
+  token: z.string(),
+  createdAt: z.coerce.date().optional()
+}).strict();
+
+export const SessionUpdateManyMutationInputSchema: z.ZodType<Prisma.SessionUpdateManyMutationInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const SessionUncheckedUpdateManyInputSchema: z.ZodType<Prisma.SessionUncheckedUpdateManyInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  userId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const PasswordForgottenCreateInputSchema: z.ZodType<Prisma.PasswordForgottenCreateInput> = z.object({
@@ -1259,72 +1469,106 @@ export const PasswordForgottenUncheckedUpdateManyInputSchema: z.ZodType<Prisma.P
   userId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const PermissionInvitationCreateInputSchema: z.ZodType<Prisma.PermissionInvitationCreateInput> = z.object({
+export const InvitationCreateInputSchema: z.ZodType<Prisma.InvitationCreateInput> = z.object({
+  id: z.string().cuid().optional(),
   token: z.string(),
-  email: z.string().email({ message: 'Invalid email address' }),
-  invitedBy: z.string().email({ message: 'Invalid email address' }),
-  createdAt: z.coerce.date().optional(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
   hasWritePermission: z.boolean(),
-  isUsed: z.boolean().optional(),
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema),
+  invitedBy: z.lazy(() => UserCreateNestedOneWithoutInvitationsInputSchema),
   plan: z.lazy(() => PlanCreateNestedOneWithoutInvitationsInputSchema)
 }).strict();
 
-export const PermissionInvitationUncheckedCreateInputSchema: z.ZodType<Prisma.PermissionInvitationUncheckedCreateInput> = z.object({
+export const InvitationUncheckedCreateInputSchema: z.ZodType<Prisma.InvitationUncheckedCreateInput> = z.object({
+  id: z.string().cuid().optional(),
   token: z.string(),
-  email: z.string().email({ message: 'Invalid email address' }),
-  invitedBy: z.string().email({ message: 'Invalid email address' }),
-  createdAt: z.coerce.date().optional(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  invitedById: z.string(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
   hasWritePermission: z.boolean(),
-  isUsed: z.boolean().optional(),
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema),
   planId: z.string()
 }).strict();
 
-export const PermissionInvitationUpdateInputSchema: z.ZodType<Prisma.PermissionInvitationUpdateInput> = z.object({
+export const InvitationUpdateInputSchema: z.ZodType<Prisma.InvitationUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  invitedBy: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
   hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  isUsed: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  invitedBy: z.lazy(() => UserUpdateOneRequiredWithoutInvitationsNestedInputSchema).optional(),
   plan: z.lazy(() => PlanUpdateOneRequiredWithoutInvitationsNestedInputSchema).optional()
 }).strict();
 
-export const PermissionInvitationUncheckedUpdateInputSchema: z.ZodType<Prisma.PermissionInvitationUncheckedUpdateInput> = z.object({
+export const InvitationUncheckedUpdateInputSchema: z.ZodType<Prisma.InvitationUncheckedUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  invitedBy: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitedById: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
   hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  isUsed: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
   planId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const PermissionInvitationCreateManyInputSchema: z.ZodType<Prisma.PermissionInvitationCreateManyInput> = z.object({
+export const InvitationCreateManyInputSchema: z.ZodType<Prisma.InvitationCreateManyInput> = z.object({
+  id: z.string().cuid().optional(),
   token: z.string(),
-  email: z.string().email({ message: 'Invalid email address' }),
-  invitedBy: z.string().email({ message: 'Invalid email address' }),
-  createdAt: z.coerce.date().optional(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  invitedById: z.string(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
   hasWritePermission: z.boolean(),
-  isUsed: z.boolean().optional(),
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema),
   planId: z.string()
 }).strict();
 
-export const PermissionInvitationUpdateManyMutationInputSchema: z.ZodType<Prisma.PermissionInvitationUpdateManyMutationInput> = z.object({
+export const InvitationUpdateManyMutationInputSchema: z.ZodType<Prisma.InvitationUpdateManyMutationInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  invitedBy: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
   hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  isUsed: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const PermissionInvitationUncheckedUpdateManyInputSchema: z.ZodType<Prisma.PermissionInvitationUncheckedUpdateManyInput> = z.object({
+export const InvitationUncheckedUpdateManyInputSchema: z.ZodType<Prisma.InvitationUncheckedUpdateManyInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  invitedBy: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitedById: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
   hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  isUsed: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
   planId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
@@ -1546,10 +1790,10 @@ export const UserWithPermissionsListRelationFilterSchema: z.ZodType<Prisma.UserW
   none: z.lazy(() => UserWithPermissionsWhereInputSchema).optional()
 }).strict();
 
-export const PermissionInvitationListRelationFilterSchema: z.ZodType<Prisma.PermissionInvitationListRelationFilter> = z.object({
-  every: z.lazy(() => PermissionInvitationWhereInputSchema).optional(),
-  some: z.lazy(() => PermissionInvitationWhereInputSchema).optional(),
-  none: z.lazy(() => PermissionInvitationWhereInputSchema).optional()
+export const InvitationListRelationFilterSchema: z.ZodType<Prisma.InvitationListRelationFilter> = z.object({
+  every: z.lazy(() => InvitationWhereInputSchema).optional(),
+  some: z.lazy(() => InvitationWhereInputSchema).optional(),
+  none: z.lazy(() => InvitationWhereInputSchema).optional()
 }).strict();
 
 export const StepOrderByRelationAggregateInputSchema: z.ZodType<Prisma.StepOrderByRelationAggregateInput> = z.object({
@@ -1560,7 +1804,7 @@ export const UserWithPermissionsOrderByRelationAggregateInputSchema: z.ZodType<P
   _count: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
-export const PermissionInvitationOrderByRelationAggregateInputSchema: z.ZodType<Prisma.PermissionInvitationOrderByRelationAggregateInput> = z.object({
+export const InvitationOrderByRelationAggregateInputSchema: z.ZodType<Prisma.InvitationOrderByRelationAggregateInput> = z.object({
   _count: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
@@ -1613,12 +1857,22 @@ export const PasswordForgottenListRelationFilterSchema: z.ZodType<Prisma.Passwor
   none: z.lazy(() => PasswordForgottenWhereInputSchema).optional()
 }).strict();
 
+export const SessionListRelationFilterSchema: z.ZodType<Prisma.SessionListRelationFilter> = z.object({
+  every: z.lazy(() => SessionWhereInputSchema).optional(),
+  some: z.lazy(() => SessionWhereInputSchema).optional(),
+  none: z.lazy(() => SessionWhereInputSchema).optional()
+}).strict();
+
 export const SortOrderInputSchema: z.ZodType<Prisma.SortOrderInput> = z.object({
   sort: z.lazy(() => SortOrderSchema),
   nulls: z.lazy(() => NullsOrderSchema).optional()
 }).strict();
 
 export const PasswordForgottenOrderByRelationAggregateInputSchema: z.ZodType<Prisma.PasswordForgottenOrderByRelationAggregateInput> = z.object({
+  _count: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const SessionOrderByRelationAggregateInputSchema: z.ZodType<Prisma.SessionOrderByRelationAggregateInput> = z.object({
   _count: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
@@ -1679,6 +1933,27 @@ export const UserRelationFilterSchema: z.ZodType<Prisma.UserRelationFilter> = z.
   isNot: z.lazy(() => UserWhereInputSchema).optional()
 }).strict();
 
+export const SessionCountOrderByAggregateInputSchema: z.ZodType<Prisma.SessionCountOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  userId: z.lazy(() => SortOrderSchema).optional(),
+  token: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const SessionMaxOrderByAggregateInputSchema: z.ZodType<Prisma.SessionMaxOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  userId: z.lazy(() => SortOrderSchema).optional(),
+  token: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const SessionMinOrderByAggregateInputSchema: z.ZodType<Prisma.SessionMinOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  userId: z.lazy(() => SortOrderSchema).optional(),
+  token: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
 export const PasswordForgottenCountOrderByAggregateInputSchema: z.ZodType<Prisma.PasswordForgottenCountOrderByAggregateInput> = z.object({
   token: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
@@ -1700,39 +1975,116 @@ export const PasswordForgottenMinOrderByAggregateInputSchema: z.ZodType<Prisma.P
   userId: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
-export const PermissionInvitationEmailPlanIdCompoundUniqueInputSchema: z.ZodType<Prisma.PermissionInvitationEmailPlanIdCompoundUniqueInput> = z.object({
-  email: z.string(),
-  planId: z.string()
+export const StringNullableFilterSchema: z.ZodType<Prisma.StringNullableFilter> = z.object({
+  equals: z.string().optional().nullable(),
+  in: z.string().array().optional().nullable(),
+  notIn: z.string().array().optional().nullable(),
+  lt: z.string().optional(),
+  lte: z.string().optional(),
+  gt: z.string().optional(),
+  gte: z.string().optional(),
+  contains: z.string().optional(),
+  startsWith: z.string().optional(),
+  endsWith: z.string().optional(),
+  mode: z.lazy(() => QueryModeSchema).optional(),
+  not: z.union([ z.string(),z.lazy(() => NestedStringNullableFilterSchema) ]).optional().nullable(),
 }).strict();
 
-export const PermissionInvitationCountOrderByAggregateInputSchema: z.ZodType<Prisma.PermissionInvitationCountOrderByAggregateInput> = z.object({
+export const EnumInvitationStatusFilterSchema: z.ZodType<Prisma.EnumInvitationStatusFilter> = z.object({
+  equals: z.lazy(() => InvitationStatusSchema).optional(),
+  in: z.lazy(() => InvitationStatusSchema).array().optional(),
+  notIn: z.lazy(() => InvitationStatusSchema).array().optional(),
+  not: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => NestedEnumInvitationStatusFilterSchema) ]).optional(),
+}).strict();
+
+export const EnumInvitationTypeFilterSchema: z.ZodType<Prisma.EnumInvitationTypeFilter> = z.object({
+  equals: z.lazy(() => InvitationTypeSchema).optional(),
+  in: z.lazy(() => InvitationTypeSchema).array().optional(),
+  notIn: z.lazy(() => InvitationTypeSchema).array().optional(),
+  not: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => NestedEnumInvitationTypeFilterSchema) ]).optional(),
+}).strict();
+
+export const InvitationCountOrderByAggregateInputSchema: z.ZodType<Prisma.InvitationCountOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
   token: z.lazy(() => SortOrderSchema).optional(),
   email: z.lazy(() => SortOrderSchema).optional(),
-  invitedBy: z.lazy(() => SortOrderSchema).optional(),
-  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  invitedById: z.lazy(() => SortOrderSchema).optional(),
+  message: z.lazy(() => SortOrderSchema).optional(),
+  status: z.lazy(() => SortOrderSchema).optional(),
   hasWritePermission: z.lazy(() => SortOrderSchema).optional(),
-  isUsed: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  expiresAt: z.lazy(() => SortOrderSchema).optional(),
+  acceptedAt: z.lazy(() => SortOrderSchema).optional(),
+  invitationType: z.lazy(() => SortOrderSchema).optional(),
   planId: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
-export const PermissionInvitationMaxOrderByAggregateInputSchema: z.ZodType<Prisma.PermissionInvitationMaxOrderByAggregateInput> = z.object({
+export const InvitationMaxOrderByAggregateInputSchema: z.ZodType<Prisma.InvitationMaxOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
   token: z.lazy(() => SortOrderSchema).optional(),
   email: z.lazy(() => SortOrderSchema).optional(),
-  invitedBy: z.lazy(() => SortOrderSchema).optional(),
-  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  invitedById: z.lazy(() => SortOrderSchema).optional(),
+  message: z.lazy(() => SortOrderSchema).optional(),
+  status: z.lazy(() => SortOrderSchema).optional(),
   hasWritePermission: z.lazy(() => SortOrderSchema).optional(),
-  isUsed: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  expiresAt: z.lazy(() => SortOrderSchema).optional(),
+  acceptedAt: z.lazy(() => SortOrderSchema).optional(),
+  invitationType: z.lazy(() => SortOrderSchema).optional(),
   planId: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
-export const PermissionInvitationMinOrderByAggregateInputSchema: z.ZodType<Prisma.PermissionInvitationMinOrderByAggregateInput> = z.object({
+export const InvitationMinOrderByAggregateInputSchema: z.ZodType<Prisma.InvitationMinOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
   token: z.lazy(() => SortOrderSchema).optional(),
   email: z.lazy(() => SortOrderSchema).optional(),
-  invitedBy: z.lazy(() => SortOrderSchema).optional(),
-  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  invitedById: z.lazy(() => SortOrderSchema).optional(),
+  message: z.lazy(() => SortOrderSchema).optional(),
+  status: z.lazy(() => SortOrderSchema).optional(),
   hasWritePermission: z.lazy(() => SortOrderSchema).optional(),
-  isUsed: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  expiresAt: z.lazy(() => SortOrderSchema).optional(),
+  acceptedAt: z.lazy(() => SortOrderSchema).optional(),
+  invitationType: z.lazy(() => SortOrderSchema).optional(),
   planId: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const StringNullableWithAggregatesFilterSchema: z.ZodType<Prisma.StringNullableWithAggregatesFilter> = z.object({
+  equals: z.string().optional().nullable(),
+  in: z.string().array().optional().nullable(),
+  notIn: z.string().array().optional().nullable(),
+  lt: z.string().optional(),
+  lte: z.string().optional(),
+  gt: z.string().optional(),
+  gte: z.string().optional(),
+  contains: z.string().optional(),
+  startsWith: z.string().optional(),
+  endsWith: z.string().optional(),
+  mode: z.lazy(() => QueryModeSchema).optional(),
+  not: z.union([ z.string(),z.lazy(() => NestedStringNullableWithAggregatesFilterSchema) ]).optional().nullable(),
+  _count: z.lazy(() => NestedIntNullableFilterSchema).optional(),
+  _min: z.lazy(() => NestedStringNullableFilterSchema).optional(),
+  _max: z.lazy(() => NestedStringNullableFilterSchema).optional()
+}).strict();
+
+export const EnumInvitationStatusWithAggregatesFilterSchema: z.ZodType<Prisma.EnumInvitationStatusWithAggregatesFilter> = z.object({
+  equals: z.lazy(() => InvitationStatusSchema).optional(),
+  in: z.lazy(() => InvitationStatusSchema).array().optional(),
+  notIn: z.lazy(() => InvitationStatusSchema).array().optional(),
+  not: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => NestedEnumInvitationStatusWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedEnumInvitationStatusFilterSchema).optional(),
+  _max: z.lazy(() => NestedEnumInvitationStatusFilterSchema).optional()
+}).strict();
+
+export const EnumInvitationTypeWithAggregatesFilterSchema: z.ZodType<Prisma.EnumInvitationTypeWithAggregatesFilter> = z.object({
+  equals: z.lazy(() => InvitationTypeSchema).optional(),
+  in: z.lazy(() => InvitationTypeSchema).array().optional(),
+  notIn: z.lazy(() => InvitationTypeSchema).array().optional(),
+  not: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => NestedEnumInvitationTypeWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedEnumInvitationTypeFilterSchema).optional(),
+  _max: z.lazy(() => NestedEnumInvitationTypeFilterSchema).optional()
 }).strict();
 
 export const UserWithPermissionsUserIdPlanIdCompoundUniqueInputSchema: z.ZodType<Prisma.UserWithPermissionsUserIdPlanIdCompoundUniqueInput> = z.object({
@@ -1849,11 +2201,11 @@ export const UserWithPermissionsCreateNestedManyWithoutPlanInputSchema: z.ZodTyp
   connect: z.union([ z.lazy(() => UserWithPermissionsWhereUniqueInputSchema),z.lazy(() => UserWithPermissionsWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
-export const PermissionInvitationCreateNestedManyWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationCreateNestedManyWithoutPlanInput> = z.object({
-  create: z.union([ z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema).array(),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => PermissionInvitationCreateOrConnectWithoutPlanInputSchema),z.lazy(() => PermissionInvitationCreateOrConnectWithoutPlanInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => PermissionInvitationCreateManyPlanInputEnvelopeSchema).optional(),
-  connect: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
+export const InvitationCreateNestedManyWithoutPlanInputSchema: z.ZodType<Prisma.InvitationCreateNestedManyWithoutPlanInput> = z.object({
+  create: z.union([ z.lazy(() => InvitationCreateWithoutPlanInputSchema),z.lazy(() => InvitationCreateWithoutPlanInputSchema).array(),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => InvitationCreateOrConnectWithoutPlanInputSchema),z.lazy(() => InvitationCreateOrConnectWithoutPlanInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => InvitationCreateManyPlanInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
 export const StepUncheckedCreateNestedManyWithoutPlanInputSchema: z.ZodType<Prisma.StepUncheckedCreateNestedManyWithoutPlanInput> = z.object({
@@ -1870,11 +2222,11 @@ export const UserWithPermissionsUncheckedCreateNestedManyWithoutPlanInputSchema:
   connect: z.union([ z.lazy(() => UserWithPermissionsWhereUniqueInputSchema),z.lazy(() => UserWithPermissionsWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
-export const PermissionInvitationUncheckedCreateNestedManyWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationUncheckedCreateNestedManyWithoutPlanInput> = z.object({
-  create: z.union([ z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema).array(),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => PermissionInvitationCreateOrConnectWithoutPlanInputSchema),z.lazy(() => PermissionInvitationCreateOrConnectWithoutPlanInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => PermissionInvitationCreateManyPlanInputEnvelopeSchema).optional(),
-  connect: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
+export const InvitationUncheckedCreateNestedManyWithoutPlanInputSchema: z.ZodType<Prisma.InvitationUncheckedCreateNestedManyWithoutPlanInput> = z.object({
+  create: z.union([ z.lazy(() => InvitationCreateWithoutPlanInputSchema),z.lazy(() => InvitationCreateWithoutPlanInputSchema).array(),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => InvitationCreateOrConnectWithoutPlanInputSchema),z.lazy(() => InvitationCreateOrConnectWithoutPlanInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => InvitationCreateManyPlanInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
 export const StepUpdateManyWithoutPlanNestedInputSchema: z.ZodType<Prisma.StepUpdateManyWithoutPlanNestedInput> = z.object({
@@ -1905,18 +2257,18 @@ export const UserWithPermissionsUpdateManyWithoutPlanNestedInputSchema: z.ZodTyp
   deleteMany: z.union([ z.lazy(() => UserWithPermissionsScalarWhereInputSchema),z.lazy(() => UserWithPermissionsScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
-export const PermissionInvitationUpdateManyWithoutPlanNestedInputSchema: z.ZodType<Prisma.PermissionInvitationUpdateManyWithoutPlanNestedInput> = z.object({
-  create: z.union([ z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema).array(),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => PermissionInvitationCreateOrConnectWithoutPlanInputSchema),z.lazy(() => PermissionInvitationCreateOrConnectWithoutPlanInputSchema).array() ]).optional(),
-  upsert: z.union([ z.lazy(() => PermissionInvitationUpsertWithWhereUniqueWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUpsertWithWhereUniqueWithoutPlanInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => PermissionInvitationCreateManyPlanInputEnvelopeSchema).optional(),
-  set: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
-  disconnect: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
-  delete: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
-  connect: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
-  update: z.union([ z.lazy(() => PermissionInvitationUpdateWithWhereUniqueWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUpdateWithWhereUniqueWithoutPlanInputSchema).array() ]).optional(),
-  updateMany: z.union([ z.lazy(() => PermissionInvitationUpdateManyWithWhereWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUpdateManyWithWhereWithoutPlanInputSchema).array() ]).optional(),
-  deleteMany: z.union([ z.lazy(() => PermissionInvitationScalarWhereInputSchema),z.lazy(() => PermissionInvitationScalarWhereInputSchema).array() ]).optional(),
+export const InvitationUpdateManyWithoutPlanNestedInputSchema: z.ZodType<Prisma.InvitationUpdateManyWithoutPlanNestedInput> = z.object({
+  create: z.union([ z.lazy(() => InvitationCreateWithoutPlanInputSchema),z.lazy(() => InvitationCreateWithoutPlanInputSchema).array(),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => InvitationCreateOrConnectWithoutPlanInputSchema),z.lazy(() => InvitationCreateOrConnectWithoutPlanInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => InvitationUpsertWithWhereUniqueWithoutPlanInputSchema),z.lazy(() => InvitationUpsertWithWhereUniqueWithoutPlanInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => InvitationCreateManyPlanInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => InvitationUpdateWithWhereUniqueWithoutPlanInputSchema),z.lazy(() => InvitationUpdateWithWhereUniqueWithoutPlanInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => InvitationUpdateManyWithWhereWithoutPlanInputSchema),z.lazy(() => InvitationUpdateManyWithWhereWithoutPlanInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => InvitationScalarWhereInputSchema),z.lazy(() => InvitationScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
 export const StepUncheckedUpdateManyWithoutPlanNestedInputSchema: z.ZodType<Prisma.StepUncheckedUpdateManyWithoutPlanNestedInput> = z.object({
@@ -1947,18 +2299,18 @@ export const UserWithPermissionsUncheckedUpdateManyWithoutPlanNestedInputSchema:
   deleteMany: z.union([ z.lazy(() => UserWithPermissionsScalarWhereInputSchema),z.lazy(() => UserWithPermissionsScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
-export const PermissionInvitationUncheckedUpdateManyWithoutPlanNestedInputSchema: z.ZodType<Prisma.PermissionInvitationUncheckedUpdateManyWithoutPlanNestedInput> = z.object({
-  create: z.union([ z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema).array(),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => PermissionInvitationCreateOrConnectWithoutPlanInputSchema),z.lazy(() => PermissionInvitationCreateOrConnectWithoutPlanInputSchema).array() ]).optional(),
-  upsert: z.union([ z.lazy(() => PermissionInvitationUpsertWithWhereUniqueWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUpsertWithWhereUniqueWithoutPlanInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => PermissionInvitationCreateManyPlanInputEnvelopeSchema).optional(),
-  set: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
-  disconnect: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
-  delete: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
-  connect: z.union([ z.lazy(() => PermissionInvitationWhereUniqueInputSchema),z.lazy(() => PermissionInvitationWhereUniqueInputSchema).array() ]).optional(),
-  update: z.union([ z.lazy(() => PermissionInvitationUpdateWithWhereUniqueWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUpdateWithWhereUniqueWithoutPlanInputSchema).array() ]).optional(),
-  updateMany: z.union([ z.lazy(() => PermissionInvitationUpdateManyWithWhereWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUpdateManyWithWhereWithoutPlanInputSchema).array() ]).optional(),
-  deleteMany: z.union([ z.lazy(() => PermissionInvitationScalarWhereInputSchema),z.lazy(() => PermissionInvitationScalarWhereInputSchema).array() ]).optional(),
+export const InvitationUncheckedUpdateManyWithoutPlanNestedInputSchema: z.ZodType<Prisma.InvitationUncheckedUpdateManyWithoutPlanNestedInput> = z.object({
+  create: z.union([ z.lazy(() => InvitationCreateWithoutPlanInputSchema),z.lazy(() => InvitationCreateWithoutPlanInputSchema).array(),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => InvitationCreateOrConnectWithoutPlanInputSchema),z.lazy(() => InvitationCreateOrConnectWithoutPlanInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => InvitationUpsertWithWhereUniqueWithoutPlanInputSchema),z.lazy(() => InvitationUpsertWithWhereUniqueWithoutPlanInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => InvitationCreateManyPlanInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => InvitationUpdateWithWhereUniqueWithoutPlanInputSchema),z.lazy(() => InvitationUpdateWithWhereUniqueWithoutPlanInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => InvitationUpdateManyWithWhereWithoutPlanInputSchema),z.lazy(() => InvitationUpdateManyWithWhereWithoutPlanInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => InvitationScalarWhereInputSchema),z.lazy(() => InvitationScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
 export const UserWithPermissionsCreateNestedManyWithoutUserInputSchema: z.ZodType<Prisma.UserWithPermissionsCreateNestedManyWithoutUserInput> = z.object({
@@ -1975,6 +2327,20 @@ export const PasswordForgottenCreateNestedManyWithoutUserInputSchema: z.ZodType<
   connect: z.union([ z.lazy(() => PasswordForgottenWhereUniqueInputSchema),z.lazy(() => PasswordForgottenWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
+export const InvitationCreateNestedManyWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationCreateNestedManyWithoutInvitedByInput> = z.object({
+  create: z.union([ z.lazy(() => InvitationCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationCreateWithoutInvitedByInputSchema).array(),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => InvitationCreateOrConnectWithoutInvitedByInputSchema),z.lazy(() => InvitationCreateOrConnectWithoutInvitedByInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => InvitationCreateManyInvitedByInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const SessionCreateNestedManyWithoutUserInputSchema: z.ZodType<Prisma.SessionCreateNestedManyWithoutUserInput> = z.object({
+  create: z.union([ z.lazy(() => SessionCreateWithoutUserInputSchema),z.lazy(() => SessionCreateWithoutUserInputSchema).array(),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => SessionCreateOrConnectWithoutUserInputSchema),z.lazy(() => SessionCreateOrConnectWithoutUserInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => SessionCreateManyUserInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
 export const UserWithPermissionsUncheckedCreateNestedManyWithoutUserInputSchema: z.ZodType<Prisma.UserWithPermissionsUncheckedCreateNestedManyWithoutUserInput> = z.object({
   create: z.union([ z.lazy(() => UserWithPermissionsCreateWithoutUserInputSchema),z.lazy(() => UserWithPermissionsCreateWithoutUserInputSchema).array(),z.lazy(() => UserWithPermissionsUncheckedCreateWithoutUserInputSchema),z.lazy(() => UserWithPermissionsUncheckedCreateWithoutUserInputSchema).array() ]).optional(),
   connectOrCreate: z.union([ z.lazy(() => UserWithPermissionsCreateOrConnectWithoutUserInputSchema),z.lazy(() => UserWithPermissionsCreateOrConnectWithoutUserInputSchema).array() ]).optional(),
@@ -1987,6 +2353,20 @@ export const PasswordForgottenUncheckedCreateNestedManyWithoutUserInputSchema: z
   connectOrCreate: z.union([ z.lazy(() => PasswordForgottenCreateOrConnectWithoutUserInputSchema),z.lazy(() => PasswordForgottenCreateOrConnectWithoutUserInputSchema).array() ]).optional(),
   createMany: z.lazy(() => PasswordForgottenCreateManyUserInputEnvelopeSchema).optional(),
   connect: z.union([ z.lazy(() => PasswordForgottenWhereUniqueInputSchema),z.lazy(() => PasswordForgottenWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const InvitationUncheckedCreateNestedManyWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationUncheckedCreateNestedManyWithoutInvitedByInput> = z.object({
+  create: z.union([ z.lazy(() => InvitationCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationCreateWithoutInvitedByInputSchema).array(),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => InvitationCreateOrConnectWithoutInvitedByInputSchema),z.lazy(() => InvitationCreateOrConnectWithoutInvitedByInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => InvitationCreateManyInvitedByInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const SessionUncheckedCreateNestedManyWithoutUserInputSchema: z.ZodType<Prisma.SessionUncheckedCreateNestedManyWithoutUserInput> = z.object({
+  create: z.union([ z.lazy(() => SessionCreateWithoutUserInputSchema),z.lazy(() => SessionCreateWithoutUserInputSchema).array(),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => SessionCreateOrConnectWithoutUserInputSchema),z.lazy(() => SessionCreateOrConnectWithoutUserInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => SessionCreateManyUserInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
 export const BoolFieldUpdateOperationsInputSchema: z.ZodType<Prisma.BoolFieldUpdateOperationsInput> = z.object({
@@ -2025,6 +2405,34 @@ export const PasswordForgottenUpdateManyWithoutUserNestedInputSchema: z.ZodType<
   deleteMany: z.union([ z.lazy(() => PasswordForgottenScalarWhereInputSchema),z.lazy(() => PasswordForgottenScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
+export const InvitationUpdateManyWithoutInvitedByNestedInputSchema: z.ZodType<Prisma.InvitationUpdateManyWithoutInvitedByNestedInput> = z.object({
+  create: z.union([ z.lazy(() => InvitationCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationCreateWithoutInvitedByInputSchema).array(),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => InvitationCreateOrConnectWithoutInvitedByInputSchema),z.lazy(() => InvitationCreateOrConnectWithoutInvitedByInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => InvitationUpsertWithWhereUniqueWithoutInvitedByInputSchema),z.lazy(() => InvitationUpsertWithWhereUniqueWithoutInvitedByInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => InvitationCreateManyInvitedByInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => InvitationUpdateWithWhereUniqueWithoutInvitedByInputSchema),z.lazy(() => InvitationUpdateWithWhereUniqueWithoutInvitedByInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => InvitationUpdateManyWithWhereWithoutInvitedByInputSchema),z.lazy(() => InvitationUpdateManyWithWhereWithoutInvitedByInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => InvitationScalarWhereInputSchema),z.lazy(() => InvitationScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const SessionUpdateManyWithoutUserNestedInputSchema: z.ZodType<Prisma.SessionUpdateManyWithoutUserNestedInput> = z.object({
+  create: z.union([ z.lazy(() => SessionCreateWithoutUserInputSchema),z.lazy(() => SessionCreateWithoutUserInputSchema).array(),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => SessionCreateOrConnectWithoutUserInputSchema),z.lazy(() => SessionCreateOrConnectWithoutUserInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => SessionUpsertWithWhereUniqueWithoutUserInputSchema),z.lazy(() => SessionUpsertWithWhereUniqueWithoutUserInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => SessionCreateManyUserInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => SessionUpdateWithWhereUniqueWithoutUserInputSchema),z.lazy(() => SessionUpdateWithWhereUniqueWithoutUserInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => SessionUpdateManyWithWhereWithoutUserInputSchema),z.lazy(() => SessionUpdateManyWithWhereWithoutUserInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => SessionScalarWhereInputSchema),z.lazy(() => SessionScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
 export const UserWithPermissionsUncheckedUpdateManyWithoutUserNestedInputSchema: z.ZodType<Prisma.UserWithPermissionsUncheckedUpdateManyWithoutUserNestedInput> = z.object({
   create: z.union([ z.lazy(() => UserWithPermissionsCreateWithoutUserInputSchema),z.lazy(() => UserWithPermissionsCreateWithoutUserInputSchema).array(),z.lazy(() => UserWithPermissionsUncheckedCreateWithoutUserInputSchema),z.lazy(() => UserWithPermissionsUncheckedCreateWithoutUserInputSchema).array() ]).optional(),
   connectOrCreate: z.union([ z.lazy(() => UserWithPermissionsCreateOrConnectWithoutUserInputSchema),z.lazy(() => UserWithPermissionsCreateOrConnectWithoutUserInputSchema).array() ]).optional(),
@@ -2053,6 +2461,48 @@ export const PasswordForgottenUncheckedUpdateManyWithoutUserNestedInputSchema: z
   deleteMany: z.union([ z.lazy(() => PasswordForgottenScalarWhereInputSchema),z.lazy(() => PasswordForgottenScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
+export const InvitationUncheckedUpdateManyWithoutInvitedByNestedInputSchema: z.ZodType<Prisma.InvitationUncheckedUpdateManyWithoutInvitedByNestedInput> = z.object({
+  create: z.union([ z.lazy(() => InvitationCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationCreateWithoutInvitedByInputSchema).array(),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => InvitationCreateOrConnectWithoutInvitedByInputSchema),z.lazy(() => InvitationCreateOrConnectWithoutInvitedByInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => InvitationUpsertWithWhereUniqueWithoutInvitedByInputSchema),z.lazy(() => InvitationUpsertWithWhereUniqueWithoutInvitedByInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => InvitationCreateManyInvitedByInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => InvitationWhereUniqueInputSchema),z.lazy(() => InvitationWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => InvitationUpdateWithWhereUniqueWithoutInvitedByInputSchema),z.lazy(() => InvitationUpdateWithWhereUniqueWithoutInvitedByInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => InvitationUpdateManyWithWhereWithoutInvitedByInputSchema),z.lazy(() => InvitationUpdateManyWithWhereWithoutInvitedByInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => InvitationScalarWhereInputSchema),z.lazy(() => InvitationScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const SessionUncheckedUpdateManyWithoutUserNestedInputSchema: z.ZodType<Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput> = z.object({
+  create: z.union([ z.lazy(() => SessionCreateWithoutUserInputSchema),z.lazy(() => SessionCreateWithoutUserInputSchema).array(),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => SessionCreateOrConnectWithoutUserInputSchema),z.lazy(() => SessionCreateOrConnectWithoutUserInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => SessionUpsertWithWhereUniqueWithoutUserInputSchema),z.lazy(() => SessionUpsertWithWhereUniqueWithoutUserInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => SessionCreateManyUserInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => SessionWhereUniqueInputSchema),z.lazy(() => SessionWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => SessionUpdateWithWhereUniqueWithoutUserInputSchema),z.lazy(() => SessionUpdateWithWhereUniqueWithoutUserInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => SessionUpdateManyWithWhereWithoutUserInputSchema),z.lazy(() => SessionUpdateManyWithWhereWithoutUserInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => SessionScalarWhereInputSchema),z.lazy(() => SessionScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const UserCreateNestedOneWithoutSessionsInputSchema: z.ZodType<Prisma.UserCreateNestedOneWithoutSessionsInput> = z.object({
+  create: z.union([ z.lazy(() => UserCreateWithoutSessionsInputSchema),z.lazy(() => UserUncheckedCreateWithoutSessionsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => UserCreateOrConnectWithoutSessionsInputSchema).optional(),
+  connect: z.lazy(() => UserWhereUniqueInputSchema).optional()
+}).strict();
+
+export const UserUpdateOneRequiredWithoutSessionsNestedInputSchema: z.ZodType<Prisma.UserUpdateOneRequiredWithoutSessionsNestedInput> = z.object({
+  create: z.union([ z.lazy(() => UserCreateWithoutSessionsInputSchema),z.lazy(() => UserUncheckedCreateWithoutSessionsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => UserCreateOrConnectWithoutSessionsInputSchema).optional(),
+  upsert: z.lazy(() => UserUpsertWithoutSessionsInputSchema).optional(),
+  connect: z.lazy(() => UserWhereUniqueInputSchema).optional(),
+  update: z.union([ z.lazy(() => UserUpdateToOneWithWhereWithoutSessionsInputSchema),z.lazy(() => UserUpdateWithoutSessionsInputSchema),z.lazy(() => UserUncheckedUpdateWithoutSessionsInputSchema) ]).optional(),
+}).strict();
+
 export const UserCreateNestedOneWithoutPasswordForgottenInputSchema: z.ZodType<Prisma.UserCreateNestedOneWithoutPasswordForgottenInput> = z.object({
   create: z.union([ z.lazy(() => UserCreateWithoutPasswordForgottenInputSchema),z.lazy(() => UserUncheckedCreateWithoutPasswordForgottenInputSchema) ]).optional(),
   connectOrCreate: z.lazy(() => UserCreateOrConnectWithoutPasswordForgottenInputSchema).optional(),
@@ -2067,10 +2517,36 @@ export const UserUpdateOneRequiredWithoutPasswordForgottenNestedInputSchema: z.Z
   update: z.union([ z.lazy(() => UserUpdateToOneWithWhereWithoutPasswordForgottenInputSchema),z.lazy(() => UserUpdateWithoutPasswordForgottenInputSchema),z.lazy(() => UserUncheckedUpdateWithoutPasswordForgottenInputSchema) ]).optional(),
 }).strict();
 
+export const UserCreateNestedOneWithoutInvitationsInputSchema: z.ZodType<Prisma.UserCreateNestedOneWithoutInvitationsInput> = z.object({
+  create: z.union([ z.lazy(() => UserCreateWithoutInvitationsInputSchema),z.lazy(() => UserUncheckedCreateWithoutInvitationsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => UserCreateOrConnectWithoutInvitationsInputSchema).optional(),
+  connect: z.lazy(() => UserWhereUniqueInputSchema).optional()
+}).strict();
+
 export const PlanCreateNestedOneWithoutInvitationsInputSchema: z.ZodType<Prisma.PlanCreateNestedOneWithoutInvitationsInput> = z.object({
   create: z.union([ z.lazy(() => PlanCreateWithoutInvitationsInputSchema),z.lazy(() => PlanUncheckedCreateWithoutInvitationsInputSchema) ]).optional(),
   connectOrCreate: z.lazy(() => PlanCreateOrConnectWithoutInvitationsInputSchema).optional(),
   connect: z.lazy(() => PlanWhereUniqueInputSchema).optional()
+}).strict();
+
+export const NullableStringFieldUpdateOperationsInputSchema: z.ZodType<Prisma.NullableStringFieldUpdateOperationsInput> = z.object({
+  set: z.string().optional().nullable()
+}).strict();
+
+export const EnumInvitationStatusFieldUpdateOperationsInputSchema: z.ZodType<Prisma.EnumInvitationStatusFieldUpdateOperationsInput> = z.object({
+  set: z.lazy(() => InvitationStatusSchema).optional()
+}).strict();
+
+export const EnumInvitationTypeFieldUpdateOperationsInputSchema: z.ZodType<Prisma.EnumInvitationTypeFieldUpdateOperationsInput> = z.object({
+  set: z.lazy(() => InvitationTypeSchema).optional()
+}).strict();
+
+export const UserUpdateOneRequiredWithoutInvitationsNestedInputSchema: z.ZodType<Prisma.UserUpdateOneRequiredWithoutInvitationsNestedInput> = z.object({
+  create: z.union([ z.lazy(() => UserCreateWithoutInvitationsInputSchema),z.lazy(() => UserUncheckedCreateWithoutInvitationsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => UserCreateOrConnectWithoutInvitationsInputSchema).optional(),
+  upsert: z.lazy(() => UserUpsertWithoutInvitationsInputSchema).optional(),
+  connect: z.lazy(() => UserWhereUniqueInputSchema).optional(),
+  update: z.union([ z.lazy(() => UserUpdateToOneWithWhereWithoutInvitationsInputSchema),z.lazy(() => UserUpdateWithoutInvitationsInputSchema),z.lazy(() => UserUncheckedUpdateWithoutInvitationsInputSchema) ]).optional(),
 }).strict();
 
 export const PlanUpdateOneRequiredWithoutInvitationsNestedInputSchema: z.ZodType<Prisma.PlanUpdateOneRequiredWithoutInvitationsNestedInput> = z.object({
@@ -2225,6 +2701,71 @@ export const NestedIntNullableFilterSchema: z.ZodType<Prisma.NestedIntNullableFi
   not: z.union([ z.number(),z.lazy(() => NestedIntNullableFilterSchema) ]).optional().nullable(),
 }).strict();
 
+export const NestedStringNullableFilterSchema: z.ZodType<Prisma.NestedStringNullableFilter> = z.object({
+  equals: z.string().optional().nullable(),
+  in: z.string().array().optional().nullable(),
+  notIn: z.string().array().optional().nullable(),
+  lt: z.string().optional(),
+  lte: z.string().optional(),
+  gt: z.string().optional(),
+  gte: z.string().optional(),
+  contains: z.string().optional(),
+  startsWith: z.string().optional(),
+  endsWith: z.string().optional(),
+  not: z.union([ z.string(),z.lazy(() => NestedStringNullableFilterSchema) ]).optional().nullable(),
+}).strict();
+
+export const NestedEnumInvitationStatusFilterSchema: z.ZodType<Prisma.NestedEnumInvitationStatusFilter> = z.object({
+  equals: z.lazy(() => InvitationStatusSchema).optional(),
+  in: z.lazy(() => InvitationStatusSchema).array().optional(),
+  notIn: z.lazy(() => InvitationStatusSchema).array().optional(),
+  not: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => NestedEnumInvitationStatusFilterSchema) ]).optional(),
+}).strict();
+
+export const NestedEnumInvitationTypeFilterSchema: z.ZodType<Prisma.NestedEnumInvitationTypeFilter> = z.object({
+  equals: z.lazy(() => InvitationTypeSchema).optional(),
+  in: z.lazy(() => InvitationTypeSchema).array().optional(),
+  notIn: z.lazy(() => InvitationTypeSchema).array().optional(),
+  not: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => NestedEnumInvitationTypeFilterSchema) ]).optional(),
+}).strict();
+
+export const NestedStringNullableWithAggregatesFilterSchema: z.ZodType<Prisma.NestedStringNullableWithAggregatesFilter> = z.object({
+  equals: z.string().optional().nullable(),
+  in: z.string().array().optional().nullable(),
+  notIn: z.string().array().optional().nullable(),
+  lt: z.string().optional(),
+  lte: z.string().optional(),
+  gt: z.string().optional(),
+  gte: z.string().optional(),
+  contains: z.string().optional(),
+  startsWith: z.string().optional(),
+  endsWith: z.string().optional(),
+  not: z.union([ z.string(),z.lazy(() => NestedStringNullableWithAggregatesFilterSchema) ]).optional().nullable(),
+  _count: z.lazy(() => NestedIntNullableFilterSchema).optional(),
+  _min: z.lazy(() => NestedStringNullableFilterSchema).optional(),
+  _max: z.lazy(() => NestedStringNullableFilterSchema).optional()
+}).strict();
+
+export const NestedEnumInvitationStatusWithAggregatesFilterSchema: z.ZodType<Prisma.NestedEnumInvitationStatusWithAggregatesFilter> = z.object({
+  equals: z.lazy(() => InvitationStatusSchema).optional(),
+  in: z.lazy(() => InvitationStatusSchema).array().optional(),
+  notIn: z.lazy(() => InvitationStatusSchema).array().optional(),
+  not: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => NestedEnumInvitationStatusWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedEnumInvitationStatusFilterSchema).optional(),
+  _max: z.lazy(() => NestedEnumInvitationStatusFilterSchema).optional()
+}).strict();
+
+export const NestedEnumInvitationTypeWithAggregatesFilterSchema: z.ZodType<Prisma.NestedEnumInvitationTypeWithAggregatesFilter> = z.object({
+  equals: z.lazy(() => InvitationTypeSchema).optional(),
+  in: z.lazy(() => InvitationTypeSchema).array().optional(),
+  notIn: z.lazy(() => InvitationTypeSchema).array().optional(),
+  not: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => NestedEnumInvitationTypeWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedEnumInvitationTypeFilterSchema).optional(),
+  _max: z.lazy(() => NestedEnumInvitationTypeFilterSchema).optional()
+}).strict();
+
 export const StepCreateWithoutCoordInputSchema: z.ZodType<Prisma.StepCreateWithoutCoordInput> = z.object({
   id: z.string().cuid().optional(),
   name: z.string(),
@@ -2322,7 +2863,7 @@ export const PlanCreateWithoutStepsInputSchema: z.ZodType<Prisma.PlanCreateWitho
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   users: z.lazy(() => UserWithPermissionsCreateNestedManyWithoutPlanInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationCreateNestedManyWithoutPlanInputSchema).optional()
+  invitations: z.lazy(() => InvitationCreateNestedManyWithoutPlanInputSchema).optional()
 }).strict();
 
 export const PlanUncheckedCreateWithoutStepsInputSchema: z.ZodType<Prisma.PlanUncheckedCreateWithoutStepsInput> = z.object({
@@ -2333,7 +2874,7 @@ export const PlanUncheckedCreateWithoutStepsInputSchema: z.ZodType<Prisma.PlanUn
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   users: z.lazy(() => UserWithPermissionsUncheckedCreateNestedManyWithoutPlanInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUncheckedCreateNestedManyWithoutPlanInputSchema).optional()
+  invitations: z.lazy(() => InvitationUncheckedCreateNestedManyWithoutPlanInputSchema).optional()
 }).strict();
 
 export const PlanCreateOrConnectWithoutStepsInputSchema: z.ZodType<Prisma.PlanCreateOrConnectWithoutStepsInput> = z.object({
@@ -2395,7 +2936,7 @@ export const PlanUpdateWithoutStepsInputSchema: z.ZodType<Prisma.PlanUpdateWitho
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   users: z.lazy(() => UserWithPermissionsUpdateManyWithoutPlanNestedInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUpdateManyWithoutPlanNestedInputSchema).optional()
+  invitations: z.lazy(() => InvitationUpdateManyWithoutPlanNestedInputSchema).optional()
 }).strict();
 
 export const PlanUncheckedUpdateWithoutStepsInputSchema: z.ZodType<Prisma.PlanUncheckedUpdateWithoutStepsInput> = z.object({
@@ -2406,7 +2947,7 @@ export const PlanUncheckedUpdateWithoutStepsInputSchema: z.ZodType<Prisma.PlanUn
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   users: z.lazy(() => UserWithPermissionsUncheckedUpdateManyWithoutPlanNestedInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUncheckedUpdateManyWithoutPlanNestedInputSchema).optional()
+  invitations: z.lazy(() => InvitationUncheckedUpdateManyWithoutPlanNestedInputSchema).optional()
 }).strict();
 
 export const StepCreateWithoutPlanInputSchema: z.ZodType<Prisma.StepCreateWithoutPlanInput> = z.object({
@@ -2467,31 +3008,41 @@ export const UserWithPermissionsCreateManyPlanInputEnvelopeSchema: z.ZodType<Pri
   skipDuplicates: z.boolean().optional()
 }).strict();
 
-export const PermissionInvitationCreateWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationCreateWithoutPlanInput> = z.object({
+export const InvitationCreateWithoutPlanInputSchema: z.ZodType<Prisma.InvitationCreateWithoutPlanInput> = z.object({
+  id: z.string().cuid().optional(),
   token: z.string(),
-  email: z.string().email({ message: 'Invalid email address' }),
-  invitedBy: z.string().email({ message: 'Invalid email address' }),
-  createdAt: z.coerce.date().optional(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
   hasWritePermission: z.boolean(),
-  isUsed: z.boolean().optional()
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema),
+  invitedBy: z.lazy(() => UserCreateNestedOneWithoutInvitationsInputSchema)
 }).strict();
 
-export const PermissionInvitationUncheckedCreateWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationUncheckedCreateWithoutPlanInput> = z.object({
+export const InvitationUncheckedCreateWithoutPlanInputSchema: z.ZodType<Prisma.InvitationUncheckedCreateWithoutPlanInput> = z.object({
+  id: z.string().cuid().optional(),
   token: z.string(),
-  email: z.string().email({ message: 'Invalid email address' }),
-  invitedBy: z.string().email({ message: 'Invalid email address' }),
-  createdAt: z.coerce.date().optional(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  invitedById: z.string(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
   hasWritePermission: z.boolean(),
-  isUsed: z.boolean().optional()
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema)
 }).strict();
 
-export const PermissionInvitationCreateOrConnectWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationCreateOrConnectWithoutPlanInput> = z.object({
-  where: z.lazy(() => PermissionInvitationWhereUniqueInputSchema),
-  create: z.union([ z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema) ]),
+export const InvitationCreateOrConnectWithoutPlanInputSchema: z.ZodType<Prisma.InvitationCreateOrConnectWithoutPlanInput> = z.object({
+  where: z.lazy(() => InvitationWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => InvitationCreateWithoutPlanInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema) ]),
 }).strict();
 
-export const PermissionInvitationCreateManyPlanInputEnvelopeSchema: z.ZodType<Prisma.PermissionInvitationCreateManyPlanInputEnvelope> = z.object({
-  data: z.union([ z.lazy(() => PermissionInvitationCreateManyPlanInputSchema),z.lazy(() => PermissionInvitationCreateManyPlanInputSchema).array() ]),
+export const InvitationCreateManyPlanInputEnvelopeSchema: z.ZodType<Prisma.InvitationCreateManyPlanInputEnvelope> = z.object({
+  data: z.union([ z.lazy(() => InvitationCreateManyPlanInputSchema),z.lazy(() => InvitationCreateManyPlanInputSchema).array() ]),
   skipDuplicates: z.boolean().optional()
 }).strict();
 
@@ -2553,32 +3104,37 @@ export const UserWithPermissionsScalarWhereInputSchema: z.ZodType<Prisma.UserWit
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
 }).strict();
 
-export const PermissionInvitationUpsertWithWhereUniqueWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationUpsertWithWhereUniqueWithoutPlanInput> = z.object({
-  where: z.lazy(() => PermissionInvitationWhereUniqueInputSchema),
-  update: z.union([ z.lazy(() => PermissionInvitationUpdateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUncheckedUpdateWithoutPlanInputSchema) ]),
-  create: z.union([ z.lazy(() => PermissionInvitationCreateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUncheckedCreateWithoutPlanInputSchema) ]),
+export const InvitationUpsertWithWhereUniqueWithoutPlanInputSchema: z.ZodType<Prisma.InvitationUpsertWithWhereUniqueWithoutPlanInput> = z.object({
+  where: z.lazy(() => InvitationWhereUniqueInputSchema),
+  update: z.union([ z.lazy(() => InvitationUpdateWithoutPlanInputSchema),z.lazy(() => InvitationUncheckedUpdateWithoutPlanInputSchema) ]),
+  create: z.union([ z.lazy(() => InvitationCreateWithoutPlanInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutPlanInputSchema) ]),
 }).strict();
 
-export const PermissionInvitationUpdateWithWhereUniqueWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationUpdateWithWhereUniqueWithoutPlanInput> = z.object({
-  where: z.lazy(() => PermissionInvitationWhereUniqueInputSchema),
-  data: z.union([ z.lazy(() => PermissionInvitationUpdateWithoutPlanInputSchema),z.lazy(() => PermissionInvitationUncheckedUpdateWithoutPlanInputSchema) ]),
+export const InvitationUpdateWithWhereUniqueWithoutPlanInputSchema: z.ZodType<Prisma.InvitationUpdateWithWhereUniqueWithoutPlanInput> = z.object({
+  where: z.lazy(() => InvitationWhereUniqueInputSchema),
+  data: z.union([ z.lazy(() => InvitationUpdateWithoutPlanInputSchema),z.lazy(() => InvitationUncheckedUpdateWithoutPlanInputSchema) ]),
 }).strict();
 
-export const PermissionInvitationUpdateManyWithWhereWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationUpdateManyWithWhereWithoutPlanInput> = z.object({
-  where: z.lazy(() => PermissionInvitationScalarWhereInputSchema),
-  data: z.union([ z.lazy(() => PermissionInvitationUpdateManyMutationInputSchema),z.lazy(() => PermissionInvitationUncheckedUpdateManyWithoutPlanInputSchema) ]),
+export const InvitationUpdateManyWithWhereWithoutPlanInputSchema: z.ZodType<Prisma.InvitationUpdateManyWithWhereWithoutPlanInput> = z.object({
+  where: z.lazy(() => InvitationScalarWhereInputSchema),
+  data: z.union([ z.lazy(() => InvitationUpdateManyMutationInputSchema),z.lazy(() => InvitationUncheckedUpdateManyWithoutPlanInputSchema) ]),
 }).strict();
 
-export const PermissionInvitationScalarWhereInputSchema: z.ZodType<Prisma.PermissionInvitationScalarWhereInput> = z.object({
-  AND: z.union([ z.lazy(() => PermissionInvitationScalarWhereInputSchema),z.lazy(() => PermissionInvitationScalarWhereInputSchema).array() ]).optional(),
-  OR: z.lazy(() => PermissionInvitationScalarWhereInputSchema).array().optional(),
-  NOT: z.union([ z.lazy(() => PermissionInvitationScalarWhereInputSchema),z.lazy(() => PermissionInvitationScalarWhereInputSchema).array() ]).optional(),
+export const InvitationScalarWhereInputSchema: z.ZodType<Prisma.InvitationScalarWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => InvitationScalarWhereInputSchema),z.lazy(() => InvitationScalarWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => InvitationScalarWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => InvitationScalarWhereInputSchema),z.lazy(() => InvitationScalarWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   token: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  email: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  invitedBy: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  email: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
+  invitedById: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  message: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
+  status: z.union([ z.lazy(() => EnumInvitationStatusFilterSchema),z.lazy(() => InvitationStatusSchema) ]).optional(),
   hasWritePermission: z.union([ z.lazy(() => BoolFilterSchema),z.boolean() ]).optional(),
-  isUsed: z.union([ z.lazy(() => BoolFilterSchema),z.boolean() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  expiresAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  acceptedAt: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => EnumInvitationTypeFilterSchema),z.lazy(() => InvitationTypeSchema) ]).optional(),
   planId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
 }).strict();
 
@@ -2630,6 +3186,66 @@ export const PasswordForgottenCreateManyUserInputEnvelopeSchema: z.ZodType<Prism
   skipDuplicates: z.boolean().optional()
 }).strict();
 
+export const InvitationCreateWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationCreateWithoutInvitedByInput> = z.object({
+  id: z.string().cuid().optional(),
+  token: z.string(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
+  hasWritePermission: z.boolean(),
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema),
+  plan: z.lazy(() => PlanCreateNestedOneWithoutInvitationsInputSchema)
+}).strict();
+
+export const InvitationUncheckedCreateWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationUncheckedCreateWithoutInvitedByInput> = z.object({
+  id: z.string().cuid().optional(),
+  token: z.string(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
+  hasWritePermission: z.boolean(),
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema),
+  planId: z.string()
+}).strict();
+
+export const InvitationCreateOrConnectWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationCreateOrConnectWithoutInvitedByInput> = z.object({
+  where: z.lazy(() => InvitationWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => InvitationCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema) ]),
+}).strict();
+
+export const InvitationCreateManyInvitedByInputEnvelopeSchema: z.ZodType<Prisma.InvitationCreateManyInvitedByInputEnvelope> = z.object({
+  data: z.union([ z.lazy(() => InvitationCreateManyInvitedByInputSchema),z.lazy(() => InvitationCreateManyInvitedByInputSchema).array() ]),
+  skipDuplicates: z.boolean().optional()
+}).strict();
+
+export const SessionCreateWithoutUserInputSchema: z.ZodType<Prisma.SessionCreateWithoutUserInput> = z.object({
+  id: z.string().cuid().optional(),
+  token: z.string(),
+  createdAt: z.coerce.date().optional()
+}).strict();
+
+export const SessionUncheckedCreateWithoutUserInputSchema: z.ZodType<Prisma.SessionUncheckedCreateWithoutUserInput> = z.object({
+  id: z.string().cuid().optional(),
+  token: z.string(),
+  createdAt: z.coerce.date().optional()
+}).strict();
+
+export const SessionCreateOrConnectWithoutUserInputSchema: z.ZodType<Prisma.SessionCreateOrConnectWithoutUserInput> = z.object({
+  where: z.lazy(() => SessionWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => SessionCreateWithoutUserInputSchema),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema) ]),
+}).strict();
+
+export const SessionCreateManyUserInputEnvelopeSchema: z.ZodType<Prisma.SessionCreateManyUserInputEnvelope> = z.object({
+  data: z.union([ z.lazy(() => SessionCreateManyUserInputSchema),z.lazy(() => SessionCreateManyUserInputSchema).array() ]),
+  skipDuplicates: z.boolean().optional()
+}).strict();
+
 export const UserWithPermissionsUpsertWithWhereUniqueWithoutUserInputSchema: z.ZodType<Prisma.UserWithPermissionsUpsertWithWhereUniqueWithoutUserInput> = z.object({
   where: z.lazy(() => UserWithPermissionsWhereUniqueInputSchema),
   update: z.union([ z.lazy(() => UserWithPermissionsUpdateWithoutUserInputSchema),z.lazy(() => UserWithPermissionsUncheckedUpdateWithoutUserInputSchema) ]),
@@ -2672,6 +3288,116 @@ export const PasswordForgottenScalarWhereInputSchema: z.ZodType<Prisma.PasswordF
   userId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
 }).strict();
 
+export const InvitationUpsertWithWhereUniqueWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationUpsertWithWhereUniqueWithoutInvitedByInput> = z.object({
+  where: z.lazy(() => InvitationWhereUniqueInputSchema),
+  update: z.union([ z.lazy(() => InvitationUpdateWithoutInvitedByInputSchema),z.lazy(() => InvitationUncheckedUpdateWithoutInvitedByInputSchema) ]),
+  create: z.union([ z.lazy(() => InvitationCreateWithoutInvitedByInputSchema),z.lazy(() => InvitationUncheckedCreateWithoutInvitedByInputSchema) ]),
+}).strict();
+
+export const InvitationUpdateWithWhereUniqueWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationUpdateWithWhereUniqueWithoutInvitedByInput> = z.object({
+  where: z.lazy(() => InvitationWhereUniqueInputSchema),
+  data: z.union([ z.lazy(() => InvitationUpdateWithoutInvitedByInputSchema),z.lazy(() => InvitationUncheckedUpdateWithoutInvitedByInputSchema) ]),
+}).strict();
+
+export const InvitationUpdateManyWithWhereWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationUpdateManyWithWhereWithoutInvitedByInput> = z.object({
+  where: z.lazy(() => InvitationScalarWhereInputSchema),
+  data: z.union([ z.lazy(() => InvitationUpdateManyMutationInputSchema),z.lazy(() => InvitationUncheckedUpdateManyWithoutInvitedByInputSchema) ]),
+}).strict();
+
+export const SessionUpsertWithWhereUniqueWithoutUserInputSchema: z.ZodType<Prisma.SessionUpsertWithWhereUniqueWithoutUserInput> = z.object({
+  where: z.lazy(() => SessionWhereUniqueInputSchema),
+  update: z.union([ z.lazy(() => SessionUpdateWithoutUserInputSchema),z.lazy(() => SessionUncheckedUpdateWithoutUserInputSchema) ]),
+  create: z.union([ z.lazy(() => SessionCreateWithoutUserInputSchema),z.lazy(() => SessionUncheckedCreateWithoutUserInputSchema) ]),
+}).strict();
+
+export const SessionUpdateWithWhereUniqueWithoutUserInputSchema: z.ZodType<Prisma.SessionUpdateWithWhereUniqueWithoutUserInput> = z.object({
+  where: z.lazy(() => SessionWhereUniqueInputSchema),
+  data: z.union([ z.lazy(() => SessionUpdateWithoutUserInputSchema),z.lazy(() => SessionUncheckedUpdateWithoutUserInputSchema) ]),
+}).strict();
+
+export const SessionUpdateManyWithWhereWithoutUserInputSchema: z.ZodType<Prisma.SessionUpdateManyWithWhereWithoutUserInput> = z.object({
+  where: z.lazy(() => SessionScalarWhereInputSchema),
+  data: z.union([ z.lazy(() => SessionUpdateManyMutationInputSchema),z.lazy(() => SessionUncheckedUpdateManyWithoutUserInputSchema) ]),
+}).strict();
+
+export const SessionScalarWhereInputSchema: z.ZodType<Prisma.SessionScalarWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => SessionScalarWhereInputSchema),z.lazy(() => SessionScalarWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => SessionScalarWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => SessionScalarWhereInputSchema),z.lazy(() => SessionScalarWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  userId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  token: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+}).strict();
+
+export const UserCreateWithoutSessionsInputSchema: z.ZodType<Prisma.UserCreateWithoutSessionsInput> = z.object({
+  id: z.string().cuid().optional(),
+  email: z.string().email({ message: 'Invalid email address' }),
+  username: z.string(),
+  password: z.string(),
+  isEmailValid: z.boolean(),
+  createdAt: z.coerce.date().optional(),
+  lastLoginOn: z.coerce.date().optional().nullable(),
+  plans: z.lazy(() => UserWithPermissionsCreateNestedManyWithoutUserInputSchema).optional(),
+  passwordForgotten: z.lazy(() => PasswordForgottenCreateNestedManyWithoutUserInputSchema).optional(),
+  invitations: z.lazy(() => InvitationCreateNestedManyWithoutInvitedByInputSchema).optional()
+}).strict();
+
+export const UserUncheckedCreateWithoutSessionsInputSchema: z.ZodType<Prisma.UserUncheckedCreateWithoutSessionsInput> = z.object({
+  id: z.string().cuid().optional(),
+  email: z.string().email({ message: 'Invalid email address' }),
+  username: z.string(),
+  password: z.string(),
+  isEmailValid: z.boolean(),
+  createdAt: z.coerce.date().optional(),
+  lastLoginOn: z.coerce.date().optional().nullable(),
+  plans: z.lazy(() => UserWithPermissionsUncheckedCreateNestedManyWithoutUserInputSchema).optional(),
+  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedCreateNestedManyWithoutUserInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUncheckedCreateNestedManyWithoutInvitedByInputSchema).optional()
+}).strict();
+
+export const UserCreateOrConnectWithoutSessionsInputSchema: z.ZodType<Prisma.UserCreateOrConnectWithoutSessionsInput> = z.object({
+  where: z.lazy(() => UserWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => UserCreateWithoutSessionsInputSchema),z.lazy(() => UserUncheckedCreateWithoutSessionsInputSchema) ]),
+}).strict();
+
+export const UserUpsertWithoutSessionsInputSchema: z.ZodType<Prisma.UserUpsertWithoutSessionsInput> = z.object({
+  update: z.union([ z.lazy(() => UserUpdateWithoutSessionsInputSchema),z.lazy(() => UserUncheckedUpdateWithoutSessionsInputSchema) ]),
+  create: z.union([ z.lazy(() => UserCreateWithoutSessionsInputSchema),z.lazy(() => UserUncheckedCreateWithoutSessionsInputSchema) ]),
+  where: z.lazy(() => UserWhereInputSchema).optional()
+}).strict();
+
+export const UserUpdateToOneWithWhereWithoutSessionsInputSchema: z.ZodType<Prisma.UserUpdateToOneWithWhereWithoutSessionsInput> = z.object({
+  where: z.lazy(() => UserWhereInputSchema).optional(),
+  data: z.union([ z.lazy(() => UserUpdateWithoutSessionsInputSchema),z.lazy(() => UserUncheckedUpdateWithoutSessionsInputSchema) ]),
+}).strict();
+
+export const UserUpdateWithoutSessionsInputSchema: z.ZodType<Prisma.UserUpdateWithoutSessionsInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  password: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  plans: z.lazy(() => UserWithPermissionsUpdateManyWithoutUserNestedInputSchema).optional(),
+  passwordForgotten: z.lazy(() => PasswordForgottenUpdateManyWithoutUserNestedInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUpdateManyWithoutInvitedByNestedInputSchema).optional()
+}).strict();
+
+export const UserUncheckedUpdateWithoutSessionsInputSchema: z.ZodType<Prisma.UserUncheckedUpdateWithoutSessionsInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  password: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  plans: z.lazy(() => UserWithPermissionsUncheckedUpdateManyWithoutUserNestedInputSchema).optional(),
+  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedUpdateManyWithoutUserNestedInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUncheckedUpdateManyWithoutInvitedByNestedInputSchema).optional()
+}).strict();
+
 export const UserCreateWithoutPasswordForgottenInputSchema: z.ZodType<Prisma.UserCreateWithoutPasswordForgottenInput> = z.object({
   id: z.string().cuid().optional(),
   email: z.string().email({ message: 'Invalid email address' }),
@@ -2680,7 +3406,9 @@ export const UserCreateWithoutPasswordForgottenInputSchema: z.ZodType<Prisma.Use
   isEmailValid: z.boolean(),
   createdAt: z.coerce.date().optional(),
   lastLoginOn: z.coerce.date().optional().nullable(),
-  plans: z.lazy(() => UserWithPermissionsCreateNestedManyWithoutUserInputSchema).optional()
+  plans: z.lazy(() => UserWithPermissionsCreateNestedManyWithoutUserInputSchema).optional(),
+  invitations: z.lazy(() => InvitationCreateNestedManyWithoutInvitedByInputSchema).optional(),
+  Sessions: z.lazy(() => SessionCreateNestedManyWithoutUserInputSchema).optional()
 }).strict();
 
 export const UserUncheckedCreateWithoutPasswordForgottenInputSchema: z.ZodType<Prisma.UserUncheckedCreateWithoutPasswordForgottenInput> = z.object({
@@ -2691,7 +3419,9 @@ export const UserUncheckedCreateWithoutPasswordForgottenInputSchema: z.ZodType<P
   isEmailValid: z.boolean(),
   createdAt: z.coerce.date().optional(),
   lastLoginOn: z.coerce.date().optional().nullable(),
-  plans: z.lazy(() => UserWithPermissionsUncheckedCreateNestedManyWithoutUserInputSchema).optional()
+  plans: z.lazy(() => UserWithPermissionsUncheckedCreateNestedManyWithoutUserInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUncheckedCreateNestedManyWithoutInvitedByInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUncheckedCreateNestedManyWithoutUserInputSchema).optional()
 }).strict();
 
 export const UserCreateOrConnectWithoutPasswordForgottenInputSchema: z.ZodType<Prisma.UserCreateOrConnectWithoutPasswordForgottenInput> = z.object({
@@ -2718,7 +3448,9 @@ export const UserUpdateWithoutPasswordForgottenInputSchema: z.ZodType<Prisma.Use
   isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  plans: z.lazy(() => UserWithPermissionsUpdateManyWithoutUserNestedInputSchema).optional()
+  plans: z.lazy(() => UserWithPermissionsUpdateManyWithoutUserNestedInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUpdateManyWithoutInvitedByNestedInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUpdateManyWithoutUserNestedInputSchema).optional()
 }).strict();
 
 export const UserUncheckedUpdateWithoutPasswordForgottenInputSchema: z.ZodType<Prisma.UserUncheckedUpdateWithoutPasswordForgottenInput> = z.object({
@@ -2729,7 +3461,40 @@ export const UserUncheckedUpdateWithoutPasswordForgottenInputSchema: z.ZodType<P
   isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  plans: z.lazy(() => UserWithPermissionsUncheckedUpdateManyWithoutUserNestedInputSchema).optional()
+  plans: z.lazy(() => UserWithPermissionsUncheckedUpdateManyWithoutUserNestedInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUncheckedUpdateManyWithoutInvitedByNestedInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUncheckedUpdateManyWithoutUserNestedInputSchema).optional()
+}).strict();
+
+export const UserCreateWithoutInvitationsInputSchema: z.ZodType<Prisma.UserCreateWithoutInvitationsInput> = z.object({
+  id: z.string().cuid().optional(),
+  email: z.string().email({ message: 'Invalid email address' }),
+  username: z.string(),
+  password: z.string(),
+  isEmailValid: z.boolean(),
+  createdAt: z.coerce.date().optional(),
+  lastLoginOn: z.coerce.date().optional().nullable(),
+  plans: z.lazy(() => UserWithPermissionsCreateNestedManyWithoutUserInputSchema).optional(),
+  passwordForgotten: z.lazy(() => PasswordForgottenCreateNestedManyWithoutUserInputSchema).optional(),
+  Sessions: z.lazy(() => SessionCreateNestedManyWithoutUserInputSchema).optional()
+}).strict();
+
+export const UserUncheckedCreateWithoutInvitationsInputSchema: z.ZodType<Prisma.UserUncheckedCreateWithoutInvitationsInput> = z.object({
+  id: z.string().cuid().optional(),
+  email: z.string().email({ message: 'Invalid email address' }),
+  username: z.string(),
+  password: z.string(),
+  isEmailValid: z.boolean(),
+  createdAt: z.coerce.date().optional(),
+  lastLoginOn: z.coerce.date().optional().nullable(),
+  plans: z.lazy(() => UserWithPermissionsUncheckedCreateNestedManyWithoutUserInputSchema).optional(),
+  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedCreateNestedManyWithoutUserInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUncheckedCreateNestedManyWithoutUserInputSchema).optional()
+}).strict();
+
+export const UserCreateOrConnectWithoutInvitationsInputSchema: z.ZodType<Prisma.UserCreateOrConnectWithoutInvitationsInput> = z.object({
+  where: z.lazy(() => UserWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => UserCreateWithoutInvitationsInputSchema),z.lazy(() => UserUncheckedCreateWithoutInvitationsInputSchema) ]),
 }).strict();
 
 export const PlanCreateWithoutInvitationsInputSchema: z.ZodType<Prisma.PlanCreateWithoutInvitationsInput> = z.object({
@@ -2757,6 +3522,43 @@ export const PlanUncheckedCreateWithoutInvitationsInputSchema: z.ZodType<Prisma.
 export const PlanCreateOrConnectWithoutInvitationsInputSchema: z.ZodType<Prisma.PlanCreateOrConnectWithoutInvitationsInput> = z.object({
   where: z.lazy(() => PlanWhereUniqueInputSchema),
   create: z.union([ z.lazy(() => PlanCreateWithoutInvitationsInputSchema),z.lazy(() => PlanUncheckedCreateWithoutInvitationsInputSchema) ]),
+}).strict();
+
+export const UserUpsertWithoutInvitationsInputSchema: z.ZodType<Prisma.UserUpsertWithoutInvitationsInput> = z.object({
+  update: z.union([ z.lazy(() => UserUpdateWithoutInvitationsInputSchema),z.lazy(() => UserUncheckedUpdateWithoutInvitationsInputSchema) ]),
+  create: z.union([ z.lazy(() => UserCreateWithoutInvitationsInputSchema),z.lazy(() => UserUncheckedCreateWithoutInvitationsInputSchema) ]),
+  where: z.lazy(() => UserWhereInputSchema).optional()
+}).strict();
+
+export const UserUpdateToOneWithWhereWithoutInvitationsInputSchema: z.ZodType<Prisma.UserUpdateToOneWithWhereWithoutInvitationsInput> = z.object({
+  where: z.lazy(() => UserWhereInputSchema).optional(),
+  data: z.union([ z.lazy(() => UserUpdateWithoutInvitationsInputSchema),z.lazy(() => UserUncheckedUpdateWithoutInvitationsInputSchema) ]),
+}).strict();
+
+export const UserUpdateWithoutInvitationsInputSchema: z.ZodType<Prisma.UserUpdateWithoutInvitationsInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  password: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  plans: z.lazy(() => UserWithPermissionsUpdateManyWithoutUserNestedInputSchema).optional(),
+  passwordForgotten: z.lazy(() => PasswordForgottenUpdateManyWithoutUserNestedInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUpdateManyWithoutUserNestedInputSchema).optional()
+}).strict();
+
+export const UserUncheckedUpdateWithoutInvitationsInputSchema: z.ZodType<Prisma.UserUncheckedUpdateWithoutInvitationsInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  password: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  plans: z.lazy(() => UserWithPermissionsUncheckedUpdateManyWithoutUserNestedInputSchema).optional(),
+  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedUpdateManyWithoutUserNestedInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUncheckedUpdateManyWithoutUserNestedInputSchema).optional()
 }).strict();
 
 export const PlanUpsertWithoutInvitationsInputSchema: z.ZodType<Prisma.PlanUpsertWithoutInvitationsInput> = z.object({
@@ -2800,7 +3602,7 @@ export const PlanCreateWithoutUsersInputSchema: z.ZodType<Prisma.PlanCreateWitho
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   steps: z.lazy(() => StepCreateNestedManyWithoutPlanInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationCreateNestedManyWithoutPlanInputSchema).optional()
+  invitations: z.lazy(() => InvitationCreateNestedManyWithoutPlanInputSchema).optional()
 }).strict();
 
 export const PlanUncheckedCreateWithoutUsersInputSchema: z.ZodType<Prisma.PlanUncheckedCreateWithoutUsersInput> = z.object({
@@ -2811,7 +3613,7 @@ export const PlanUncheckedCreateWithoutUsersInputSchema: z.ZodType<Prisma.PlanUn
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   steps: z.lazy(() => StepUncheckedCreateNestedManyWithoutPlanInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUncheckedCreateNestedManyWithoutPlanInputSchema).optional()
+  invitations: z.lazy(() => InvitationUncheckedCreateNestedManyWithoutPlanInputSchema).optional()
 }).strict();
 
 export const PlanCreateOrConnectWithoutUsersInputSchema: z.ZodType<Prisma.PlanCreateOrConnectWithoutUsersInput> = z.object({
@@ -2827,7 +3629,9 @@ export const UserCreateWithoutPlansInputSchema: z.ZodType<Prisma.UserCreateWitho
   isEmailValid: z.boolean(),
   createdAt: z.coerce.date().optional(),
   lastLoginOn: z.coerce.date().optional().nullable(),
-  passwordForgotten: z.lazy(() => PasswordForgottenCreateNestedManyWithoutUserInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenCreateNestedManyWithoutUserInputSchema).optional(),
+  invitations: z.lazy(() => InvitationCreateNestedManyWithoutInvitedByInputSchema).optional(),
+  Sessions: z.lazy(() => SessionCreateNestedManyWithoutUserInputSchema).optional()
 }).strict();
 
 export const UserUncheckedCreateWithoutPlansInputSchema: z.ZodType<Prisma.UserUncheckedCreateWithoutPlansInput> = z.object({
@@ -2838,7 +3642,9 @@ export const UserUncheckedCreateWithoutPlansInputSchema: z.ZodType<Prisma.UserUn
   isEmailValid: z.boolean(),
   createdAt: z.coerce.date().optional(),
   lastLoginOn: z.coerce.date().optional().nullable(),
-  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedCreateNestedManyWithoutUserInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedCreateNestedManyWithoutUserInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUncheckedCreateNestedManyWithoutInvitedByInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUncheckedCreateNestedManyWithoutUserInputSchema).optional()
 }).strict();
 
 export const UserCreateOrConnectWithoutPlansInputSchema: z.ZodType<Prisma.UserCreateOrConnectWithoutPlansInput> = z.object({
@@ -2865,7 +3671,7 @@ export const PlanUpdateWithoutUsersInputSchema: z.ZodType<Prisma.PlanUpdateWitho
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   steps: z.lazy(() => StepUpdateManyWithoutPlanNestedInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUpdateManyWithoutPlanNestedInputSchema).optional()
+  invitations: z.lazy(() => InvitationUpdateManyWithoutPlanNestedInputSchema).optional()
 }).strict();
 
 export const PlanUncheckedUpdateWithoutUsersInputSchema: z.ZodType<Prisma.PlanUncheckedUpdateWithoutUsersInput> = z.object({
@@ -2876,7 +3682,7 @@ export const PlanUncheckedUpdateWithoutUsersInputSchema: z.ZodType<Prisma.PlanUn
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   steps: z.lazy(() => StepUncheckedUpdateManyWithoutPlanNestedInputSchema).optional(),
-  invitations: z.lazy(() => PermissionInvitationUncheckedUpdateManyWithoutPlanNestedInputSchema).optional()
+  invitations: z.lazy(() => InvitationUncheckedUpdateManyWithoutPlanNestedInputSchema).optional()
 }).strict();
 
 export const UserUpsertWithoutPlansInputSchema: z.ZodType<Prisma.UserUpsertWithoutPlansInput> = z.object({
@@ -2898,7 +3704,9 @@ export const UserUpdateWithoutPlansInputSchema: z.ZodType<Prisma.UserUpdateWitho
   isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  passwordForgotten: z.lazy(() => PasswordForgottenUpdateManyWithoutUserNestedInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenUpdateManyWithoutUserNestedInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUpdateManyWithoutInvitedByNestedInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUpdateManyWithoutUserNestedInputSchema).optional()
 }).strict();
 
 export const UserUncheckedUpdateWithoutPlansInputSchema: z.ZodType<Prisma.UserUncheckedUpdateWithoutPlansInput> = z.object({
@@ -2909,7 +3717,9 @@ export const UserUncheckedUpdateWithoutPlansInputSchema: z.ZodType<Prisma.UserUn
   isEmailValid: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   lastLoginOn: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedUpdateManyWithoutUserNestedInputSchema).optional()
+  passwordForgotten: z.lazy(() => PasswordForgottenUncheckedUpdateManyWithoutUserNestedInputSchema).optional(),
+  invitations: z.lazy(() => InvitationUncheckedUpdateManyWithoutInvitedByNestedInputSchema).optional(),
+  Sessions: z.lazy(() => SessionUncheckedUpdateManyWithoutUserNestedInputSchema).optional()
 }).strict();
 
 export const StepCreateManyPlanInputSchema: z.ZodType<Prisma.StepCreateManyPlanInput> = z.object({
@@ -2930,13 +3740,18 @@ export const UserWithPermissionsCreateManyPlanInputSchema: z.ZodType<Prisma.User
   updatedAt: z.coerce.date().optional()
 }).strict();
 
-export const PermissionInvitationCreateManyPlanInputSchema: z.ZodType<Prisma.PermissionInvitationCreateManyPlanInput> = z.object({
+export const InvitationCreateManyPlanInputSchema: z.ZodType<Prisma.InvitationCreateManyPlanInput> = z.object({
+  id: z.string().cuid().optional(),
   token: z.string(),
-  email: z.string().email({ message: 'Invalid email address' }),
-  invitedBy: z.string().email({ message: 'Invalid email address' }),
-  createdAt: z.coerce.date().optional(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  invitedById: z.string(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
   hasWritePermission: z.boolean(),
-  isUsed: z.boolean().optional()
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema)
 }).strict();
 
 export const StepUpdateWithoutPlanInputSchema: z.ZodType<Prisma.StepUpdateWithoutPlanInput> = z.object({
@@ -2995,31 +3810,46 @@ export const UserWithPermissionsUncheckedUpdateManyWithoutPlanInputSchema: z.Zod
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const PermissionInvitationUpdateWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationUpdateWithoutPlanInput> = z.object({
+export const InvitationUpdateWithoutPlanInputSchema: z.ZodType<Prisma.InvitationUpdateWithoutPlanInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  invitedBy: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
   hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  isUsed: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  invitedBy: z.lazy(() => UserUpdateOneRequiredWithoutInvitationsNestedInputSchema).optional()
 }).strict();
 
-export const PermissionInvitationUncheckedUpdateWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationUncheckedUpdateWithoutPlanInput> = z.object({
+export const InvitationUncheckedUpdateWithoutPlanInputSchema: z.ZodType<Prisma.InvitationUncheckedUpdateWithoutPlanInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  invitedBy: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitedById: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
   hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  isUsed: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const PermissionInvitationUncheckedUpdateManyWithoutPlanInputSchema: z.ZodType<Prisma.PermissionInvitationUncheckedUpdateManyWithoutPlanInput> = z.object({
+export const InvitationUncheckedUpdateManyWithoutPlanInputSchema: z.ZodType<Prisma.InvitationUncheckedUpdateManyWithoutPlanInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  invitedBy: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitedById: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
   hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  isUsed: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const UserWithPermissionsCreateManyUserInputSchema: z.ZodType<Prisma.UserWithPermissionsCreateManyUserInput> = z.object({
@@ -3034,6 +3864,26 @@ export const PasswordForgottenCreateManyUserInputSchema: z.ZodType<Prisma.Passwo
   token: z.string(),
   createdAt: z.coerce.date().optional(),
   isUsed: z.boolean().optional()
+}).strict();
+
+export const InvitationCreateManyInvitedByInputSchema: z.ZodType<Prisma.InvitationCreateManyInvitedByInput> = z.object({
+  id: z.string().cuid().optional(),
+  token: z.string(),
+  email: z.string().email({ message: 'Invalid email address' }).optional().nullable(),
+  message: z.string().optional().nullable(),
+  status: z.lazy(() => InvitationStatusSchema).optional(),
+  hasWritePermission: z.boolean(),
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date(),
+  acceptedAt: z.coerce.date().optional().nullable(),
+  invitationType: z.lazy(() => InvitationTypeSchema),
+  planId: z.string()
+}).strict();
+
+export const SessionCreateManyUserInputSchema: z.ZodType<Prisma.SessionCreateManyUserInput> = z.object({
+  id: z.string().cuid().optional(),
+  token: z.string(),
+  createdAt: z.coerce.date().optional()
 }).strict();
 
 export const UserWithPermissionsUpdateWithoutUserInputSchema: z.ZodType<Prisma.UserWithPermissionsUpdateWithoutUserInput> = z.object({
@@ -3076,6 +3926,66 @@ export const PasswordForgottenUncheckedUpdateManyWithoutUserInputSchema: z.ZodTy
   token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   isUsed: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const InvitationUpdateWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationUpdateWithoutInvitedByInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
+  hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  plan: z.lazy(() => PlanUpdateOneRequiredWithoutInvitationsNestedInputSchema).optional()
+}).strict();
+
+export const InvitationUncheckedUpdateWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationUncheckedUpdateWithoutInvitedByInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
+  hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  planId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const InvitationUncheckedUpdateManyWithoutInvitedByInputSchema: z.ZodType<Prisma.InvitationUncheckedUpdateManyWithoutInvitedByInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string().email({ message: 'Invalid email address' }),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  message: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  status: z.union([ z.lazy(() => InvitationStatusSchema),z.lazy(() => EnumInvitationStatusFieldUpdateOperationsInputSchema) ]).optional(),
+  hasWritePermission: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  expiresAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  acceptedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  invitationType: z.union([ z.lazy(() => InvitationTypeSchema),z.lazy(() => EnumInvitationTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  planId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const SessionUpdateWithoutUserInputSchema: z.ZodType<Prisma.SessionUpdateWithoutUserInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const SessionUncheckedUpdateWithoutUserInputSchema: z.ZodType<Prisma.SessionUncheckedUpdateWithoutUserInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const SessionUncheckedUpdateManyWithoutUserInputSchema: z.ZodType<Prisma.SessionUncheckedUpdateManyWithoutUserInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  token: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 /////////////////////////////////////////
@@ -3330,6 +4240,68 @@ export const UserFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.UserFindUniqueOrT
   where: UserWhereUniqueInputSchema,
 }).strict() ;
 
+export const SessionFindFirstArgsSchema: z.ZodType<Prisma.SessionFindFirstArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  where: SessionWhereInputSchema.optional(),
+  orderBy: z.union([ SessionOrderByWithRelationInputSchema.array(),SessionOrderByWithRelationInputSchema ]).optional(),
+  cursor: SessionWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ SessionScalarFieldEnumSchema,SessionScalarFieldEnumSchema.array() ]).optional(),
+}).strict() ;
+
+export const SessionFindFirstOrThrowArgsSchema: z.ZodType<Prisma.SessionFindFirstOrThrowArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  where: SessionWhereInputSchema.optional(),
+  orderBy: z.union([ SessionOrderByWithRelationInputSchema.array(),SessionOrderByWithRelationInputSchema ]).optional(),
+  cursor: SessionWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ SessionScalarFieldEnumSchema,SessionScalarFieldEnumSchema.array() ]).optional(),
+}).strict() ;
+
+export const SessionFindManyArgsSchema: z.ZodType<Prisma.SessionFindManyArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  where: SessionWhereInputSchema.optional(),
+  orderBy: z.union([ SessionOrderByWithRelationInputSchema.array(),SessionOrderByWithRelationInputSchema ]).optional(),
+  cursor: SessionWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ SessionScalarFieldEnumSchema,SessionScalarFieldEnumSchema.array() ]).optional(),
+}).strict() ;
+
+export const SessionAggregateArgsSchema: z.ZodType<Prisma.SessionAggregateArgs> = z.object({
+  where: SessionWhereInputSchema.optional(),
+  orderBy: z.union([ SessionOrderByWithRelationInputSchema.array(),SessionOrderByWithRelationInputSchema ]).optional(),
+  cursor: SessionWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict() ;
+
+export const SessionGroupByArgsSchema: z.ZodType<Prisma.SessionGroupByArgs> = z.object({
+  where: SessionWhereInputSchema.optional(),
+  orderBy: z.union([ SessionOrderByWithAggregationInputSchema.array(),SessionOrderByWithAggregationInputSchema ]).optional(),
+  by: SessionScalarFieldEnumSchema.array(),
+  having: SessionScalarWhereWithAggregatesInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict() ;
+
+export const SessionFindUniqueArgsSchema: z.ZodType<Prisma.SessionFindUniqueArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  where: SessionWhereUniqueInputSchema,
+}).strict() ;
+
+export const SessionFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.SessionFindUniqueOrThrowArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  where: SessionWhereUniqueInputSchema,
+}).strict() ;
+
 export const PasswordForgottenFindFirstArgsSchema: z.ZodType<Prisma.PasswordForgottenFindFirstArgs> = z.object({
   select: PasswordForgottenSelectSchema.optional(),
   include: PasswordForgottenIncludeSchema.optional(),
@@ -3392,66 +4364,66 @@ export const PasswordForgottenFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.Pass
   where: PasswordForgottenWhereUniqueInputSchema,
 }).strict() ;
 
-export const PermissionInvitationFindFirstArgsSchema: z.ZodType<Prisma.PermissionInvitationFindFirstArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  where: PermissionInvitationWhereInputSchema.optional(),
-  orderBy: z.union([ PermissionInvitationOrderByWithRelationInputSchema.array(),PermissionInvitationOrderByWithRelationInputSchema ]).optional(),
-  cursor: PermissionInvitationWhereUniqueInputSchema.optional(),
+export const InvitationFindFirstArgsSchema: z.ZodType<Prisma.InvitationFindFirstArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  where: InvitationWhereInputSchema.optional(),
+  orderBy: z.union([ InvitationOrderByWithRelationInputSchema.array(),InvitationOrderByWithRelationInputSchema ]).optional(),
+  cursor: InvitationWhereUniqueInputSchema.optional(),
   take: z.number().optional(),
   skip: z.number().optional(),
-  distinct: z.union([ PermissionInvitationScalarFieldEnumSchema,PermissionInvitationScalarFieldEnumSchema.array() ]).optional(),
+  distinct: z.union([ InvitationScalarFieldEnumSchema,InvitationScalarFieldEnumSchema.array() ]).optional(),
 }).strict() ;
 
-export const PermissionInvitationFindFirstOrThrowArgsSchema: z.ZodType<Prisma.PermissionInvitationFindFirstOrThrowArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  where: PermissionInvitationWhereInputSchema.optional(),
-  orderBy: z.union([ PermissionInvitationOrderByWithRelationInputSchema.array(),PermissionInvitationOrderByWithRelationInputSchema ]).optional(),
-  cursor: PermissionInvitationWhereUniqueInputSchema.optional(),
+export const InvitationFindFirstOrThrowArgsSchema: z.ZodType<Prisma.InvitationFindFirstOrThrowArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  where: InvitationWhereInputSchema.optional(),
+  orderBy: z.union([ InvitationOrderByWithRelationInputSchema.array(),InvitationOrderByWithRelationInputSchema ]).optional(),
+  cursor: InvitationWhereUniqueInputSchema.optional(),
   take: z.number().optional(),
   skip: z.number().optional(),
-  distinct: z.union([ PermissionInvitationScalarFieldEnumSchema,PermissionInvitationScalarFieldEnumSchema.array() ]).optional(),
+  distinct: z.union([ InvitationScalarFieldEnumSchema,InvitationScalarFieldEnumSchema.array() ]).optional(),
 }).strict() ;
 
-export const PermissionInvitationFindManyArgsSchema: z.ZodType<Prisma.PermissionInvitationFindManyArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  where: PermissionInvitationWhereInputSchema.optional(),
-  orderBy: z.union([ PermissionInvitationOrderByWithRelationInputSchema.array(),PermissionInvitationOrderByWithRelationInputSchema ]).optional(),
-  cursor: PermissionInvitationWhereUniqueInputSchema.optional(),
+export const InvitationFindManyArgsSchema: z.ZodType<Prisma.InvitationFindManyArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  where: InvitationWhereInputSchema.optional(),
+  orderBy: z.union([ InvitationOrderByWithRelationInputSchema.array(),InvitationOrderByWithRelationInputSchema ]).optional(),
+  cursor: InvitationWhereUniqueInputSchema.optional(),
   take: z.number().optional(),
   skip: z.number().optional(),
-  distinct: z.union([ PermissionInvitationScalarFieldEnumSchema,PermissionInvitationScalarFieldEnumSchema.array() ]).optional(),
+  distinct: z.union([ InvitationScalarFieldEnumSchema,InvitationScalarFieldEnumSchema.array() ]).optional(),
 }).strict() ;
 
-export const PermissionInvitationAggregateArgsSchema: z.ZodType<Prisma.PermissionInvitationAggregateArgs> = z.object({
-  where: PermissionInvitationWhereInputSchema.optional(),
-  orderBy: z.union([ PermissionInvitationOrderByWithRelationInputSchema.array(),PermissionInvitationOrderByWithRelationInputSchema ]).optional(),
-  cursor: PermissionInvitationWhereUniqueInputSchema.optional(),
-  take: z.number().optional(),
-  skip: z.number().optional(),
-}).strict() ;
-
-export const PermissionInvitationGroupByArgsSchema: z.ZodType<Prisma.PermissionInvitationGroupByArgs> = z.object({
-  where: PermissionInvitationWhereInputSchema.optional(),
-  orderBy: z.union([ PermissionInvitationOrderByWithAggregationInputSchema.array(),PermissionInvitationOrderByWithAggregationInputSchema ]).optional(),
-  by: PermissionInvitationScalarFieldEnumSchema.array(),
-  having: PermissionInvitationScalarWhereWithAggregatesInputSchema.optional(),
+export const InvitationAggregateArgsSchema: z.ZodType<Prisma.InvitationAggregateArgs> = z.object({
+  where: InvitationWhereInputSchema.optional(),
+  orderBy: z.union([ InvitationOrderByWithRelationInputSchema.array(),InvitationOrderByWithRelationInputSchema ]).optional(),
+  cursor: InvitationWhereUniqueInputSchema.optional(),
   take: z.number().optional(),
   skip: z.number().optional(),
 }).strict() ;
 
-export const PermissionInvitationFindUniqueArgsSchema: z.ZodType<Prisma.PermissionInvitationFindUniqueArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  where: PermissionInvitationWhereUniqueInputSchema,
+export const InvitationGroupByArgsSchema: z.ZodType<Prisma.InvitationGroupByArgs> = z.object({
+  where: InvitationWhereInputSchema.optional(),
+  orderBy: z.union([ InvitationOrderByWithAggregationInputSchema.array(),InvitationOrderByWithAggregationInputSchema ]).optional(),
+  by: InvitationScalarFieldEnumSchema.array(),
+  having: InvitationScalarWhereWithAggregatesInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
 }).strict() ;
 
-export const PermissionInvitationFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.PermissionInvitationFindUniqueOrThrowArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  where: PermissionInvitationWhereUniqueInputSchema,
+export const InvitationFindUniqueArgsSchema: z.ZodType<Prisma.InvitationFindUniqueArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  where: InvitationWhereUniqueInputSchema,
+}).strict() ;
+
+export const InvitationFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.InvitationFindUniqueOrThrowArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  where: InvitationWhereUniqueInputSchema,
 }).strict() ;
 
 export const UserWithPermissionsFindFirstArgsSchema: z.ZodType<Prisma.UserWithPermissionsFindFirstArgs> = z.object({
@@ -3700,6 +4672,52 @@ export const UserDeleteManyArgsSchema: z.ZodType<Prisma.UserDeleteManyArgs> = z.
   where: UserWhereInputSchema.optional(),
 }).strict() ;
 
+export const SessionCreateArgsSchema: z.ZodType<Prisma.SessionCreateArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  data: z.union([ SessionCreateInputSchema,SessionUncheckedCreateInputSchema ]),
+}).strict() ;
+
+export const SessionUpsertArgsSchema: z.ZodType<Prisma.SessionUpsertArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  where: SessionWhereUniqueInputSchema,
+  create: z.union([ SessionCreateInputSchema,SessionUncheckedCreateInputSchema ]),
+  update: z.union([ SessionUpdateInputSchema,SessionUncheckedUpdateInputSchema ]),
+}).strict() ;
+
+export const SessionCreateManyArgsSchema: z.ZodType<Prisma.SessionCreateManyArgs> = z.object({
+  data: z.union([ SessionCreateManyInputSchema,SessionCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict() ;
+
+export const SessionCreateManyAndReturnArgsSchema: z.ZodType<Prisma.SessionCreateManyAndReturnArgs> = z.object({
+  data: z.union([ SessionCreateManyInputSchema,SessionCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict() ;
+
+export const SessionDeleteArgsSchema: z.ZodType<Prisma.SessionDeleteArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  where: SessionWhereUniqueInputSchema,
+}).strict() ;
+
+export const SessionUpdateArgsSchema: z.ZodType<Prisma.SessionUpdateArgs> = z.object({
+  select: SessionSelectSchema.optional(),
+  include: SessionIncludeSchema.optional(),
+  data: z.union([ SessionUpdateInputSchema,SessionUncheckedUpdateInputSchema ]),
+  where: SessionWhereUniqueInputSchema,
+}).strict() ;
+
+export const SessionUpdateManyArgsSchema: z.ZodType<Prisma.SessionUpdateManyArgs> = z.object({
+  data: z.union([ SessionUpdateManyMutationInputSchema,SessionUncheckedUpdateManyInputSchema ]),
+  where: SessionWhereInputSchema.optional(),
+}).strict() ;
+
+export const SessionDeleteManyArgsSchema: z.ZodType<Prisma.SessionDeleteManyArgs> = z.object({
+  where: SessionWhereInputSchema.optional(),
+}).strict() ;
+
 export const PasswordForgottenCreateArgsSchema: z.ZodType<Prisma.PasswordForgottenCreateArgs> = z.object({
   select: PasswordForgottenSelectSchema.optional(),
   include: PasswordForgottenIncludeSchema.optional(),
@@ -3746,50 +4764,50 @@ export const PasswordForgottenDeleteManyArgsSchema: z.ZodType<Prisma.PasswordFor
   where: PasswordForgottenWhereInputSchema.optional(),
 }).strict() ;
 
-export const PermissionInvitationCreateArgsSchema: z.ZodType<Prisma.PermissionInvitationCreateArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  data: z.union([ PermissionInvitationCreateInputSchema,PermissionInvitationUncheckedCreateInputSchema ]),
+export const InvitationCreateArgsSchema: z.ZodType<Prisma.InvitationCreateArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  data: z.union([ InvitationCreateInputSchema,InvitationUncheckedCreateInputSchema ]),
 }).strict() ;
 
-export const PermissionInvitationUpsertArgsSchema: z.ZodType<Prisma.PermissionInvitationUpsertArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  where: PermissionInvitationWhereUniqueInputSchema,
-  create: z.union([ PermissionInvitationCreateInputSchema,PermissionInvitationUncheckedCreateInputSchema ]),
-  update: z.union([ PermissionInvitationUpdateInputSchema,PermissionInvitationUncheckedUpdateInputSchema ]),
+export const InvitationUpsertArgsSchema: z.ZodType<Prisma.InvitationUpsertArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  where: InvitationWhereUniqueInputSchema,
+  create: z.union([ InvitationCreateInputSchema,InvitationUncheckedCreateInputSchema ]),
+  update: z.union([ InvitationUpdateInputSchema,InvitationUncheckedUpdateInputSchema ]),
 }).strict() ;
 
-export const PermissionInvitationCreateManyArgsSchema: z.ZodType<Prisma.PermissionInvitationCreateManyArgs> = z.object({
-  data: z.union([ PermissionInvitationCreateManyInputSchema,PermissionInvitationCreateManyInputSchema.array() ]),
+export const InvitationCreateManyArgsSchema: z.ZodType<Prisma.InvitationCreateManyArgs> = z.object({
+  data: z.union([ InvitationCreateManyInputSchema,InvitationCreateManyInputSchema.array() ]),
   skipDuplicates: z.boolean().optional(),
 }).strict() ;
 
-export const PermissionInvitationCreateManyAndReturnArgsSchema: z.ZodType<Prisma.PermissionInvitationCreateManyAndReturnArgs> = z.object({
-  data: z.union([ PermissionInvitationCreateManyInputSchema,PermissionInvitationCreateManyInputSchema.array() ]),
+export const InvitationCreateManyAndReturnArgsSchema: z.ZodType<Prisma.InvitationCreateManyAndReturnArgs> = z.object({
+  data: z.union([ InvitationCreateManyInputSchema,InvitationCreateManyInputSchema.array() ]),
   skipDuplicates: z.boolean().optional(),
 }).strict() ;
 
-export const PermissionInvitationDeleteArgsSchema: z.ZodType<Prisma.PermissionInvitationDeleteArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  where: PermissionInvitationWhereUniqueInputSchema,
+export const InvitationDeleteArgsSchema: z.ZodType<Prisma.InvitationDeleteArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  where: InvitationWhereUniqueInputSchema,
 }).strict() ;
 
-export const PermissionInvitationUpdateArgsSchema: z.ZodType<Prisma.PermissionInvitationUpdateArgs> = z.object({
-  select: PermissionInvitationSelectSchema.optional(),
-  include: PermissionInvitationIncludeSchema.optional(),
-  data: z.union([ PermissionInvitationUpdateInputSchema,PermissionInvitationUncheckedUpdateInputSchema ]),
-  where: PermissionInvitationWhereUniqueInputSchema,
+export const InvitationUpdateArgsSchema: z.ZodType<Prisma.InvitationUpdateArgs> = z.object({
+  select: InvitationSelectSchema.optional(),
+  include: InvitationIncludeSchema.optional(),
+  data: z.union([ InvitationUpdateInputSchema,InvitationUncheckedUpdateInputSchema ]),
+  where: InvitationWhereUniqueInputSchema,
 }).strict() ;
 
-export const PermissionInvitationUpdateManyArgsSchema: z.ZodType<Prisma.PermissionInvitationUpdateManyArgs> = z.object({
-  data: z.union([ PermissionInvitationUpdateManyMutationInputSchema,PermissionInvitationUncheckedUpdateManyInputSchema ]),
-  where: PermissionInvitationWhereInputSchema.optional(),
+export const InvitationUpdateManyArgsSchema: z.ZodType<Prisma.InvitationUpdateManyArgs> = z.object({
+  data: z.union([ InvitationUpdateManyMutationInputSchema,InvitationUncheckedUpdateManyInputSchema ]),
+  where: InvitationWhereInputSchema.optional(),
 }).strict() ;
 
-export const PermissionInvitationDeleteManyArgsSchema: z.ZodType<Prisma.PermissionInvitationDeleteManyArgs> = z.object({
-  where: PermissionInvitationWhereInputSchema.optional(),
+export const InvitationDeleteManyArgsSchema: z.ZodType<Prisma.InvitationDeleteManyArgs> = z.object({
+  where: InvitationWhereInputSchema.optional(),
 }).strict() ;
 
 export const UserWithPermissionsCreateArgsSchema: z.ZodType<Prisma.UserWithPermissionsCreateArgs> = z.object({

@@ -5,7 +5,5 @@ export const hashPassword = (password: string) => {
   return bcrypt.hash(password, +saltOrRounds);
 };
 
-export const compareHash = (
-  password: string,
-  hash: string,
-) => bcrypt.compare(password, hash);
+export const compareHash = (password: string, hash: string) =>
+  bcrypt.compare(password, hash);

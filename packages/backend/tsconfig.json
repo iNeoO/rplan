@@ -1,4 +1,5 @@
 {
+  "preserveWatchOutput": true,
   "compilerOptions": {
     "strict": true,
     "jsx": "react-jsx",

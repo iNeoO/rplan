@@ -1,5 +1,5 @@
 import * as nodemailer from 'nodemailer';
-import type { MailInterface } from '../interfaces/mail.d';
+import type { MailInterface } from '../interfaces/mail.d.ts';
 
 export default class MailService {
   // eslint-disable-next-line no-use-before-define

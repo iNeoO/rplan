@@ -2,6 +2,7 @@ import globals from 'globals';
 import pluginJs from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import importPlugin from 'eslint-plugin-import';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 
 import bestPractices from 'eslint-config-airbnb-base/rules/best-practices';
 import errors from 'eslint-config-airbnb-base/rules/errors';
@@ -12,9 +13,15 @@ import style from 'eslint-config-airbnb-base/rules/style';
 import variables from 'eslint-config-airbnb-base/rules/variables';
 
 export default [
+  eslintPluginPrettierRecommended,
   {
     files: ['src/**/*.{js,mjs,cjs,ts}'],
-    ignores: ['node_modules', 'prisma/zod/index.ts', 'eslint.config.js', 'schema.d.ts'],
+    ignores: [
+      'node_modules',
+      'prisma/zod/index.ts',
+      'eslint.config.js',
+      'schema.d.ts',
+    ],
     languageOptions: { globals: globals.browser },
     plugins: {
       import: importPlugin,
@@ -29,12 +36,18 @@ export default [
       ...variables.rules,
       'import/prefer-default-export': 'off',
       'no-underscore-dangle': 'off',
-      'no-use-before-define': ['error', { 'classes': false }],
+      'no-use-before-define': ['error', { classes: false }],
+      'prettier/prettier': ['error'],
+      indent: 'off',
+      'implicit-arrow-linebreak': 'off',
+      'object-curly-newline': 'off',
+      'arrow-parens': 'off',
+      'operator-linebreak': 'off',
     },
     settings: {
-    'import/resolver': {
-      typescript: {
-        alwaysTryTypes: true,
+      'import/resolver': {
+        typescript: {
+          alwaysTryTypes: true,
           project: './tsconfig.json',
         },
       },

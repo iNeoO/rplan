@@ -6,7 +6,11 @@ export const PostUserDtoSchema = UserSchema.pick({
   email: true,
   username: true,
   password: true,
-});
+}).merge(
+  z.object({
+    token: z.string().optional(),
+  }),
+);
 
 export type PostUserDto = Z.infer<typeof PostUserDtoSchema>;
 
@@ -15,11 +19,15 @@ export const PostUserSchema = UserSchema.pick({
   email: true,
   username: true,
   createdAt: true,
-}).merge(z.object({
-  createdAt: z.string().datetime(),
-}));
+}).merge(
+  z.object({
+    createdAt: z.string().datetime(),
+  }),
+);
 
-export type UserIdentifications = Partial<Pick<User, 'id' | 'email' | 'username'>>;
+export type UserIdentifications = Partial<
+  Pick<User, 'id' | 'email' | 'username'>
+>;
 
 export const GetUserSchema = UserSchema.pick({
   id: true,
@@ -27,10 +35,12 @@ export const GetUserSchema = UserSchema.pick({
   username: true,
   createdAt: true,
   lastLoginOn: true,
-}).merge(z.object({
-  createdAt: z.string().datetime(),
-  lastLoginOn: z.string().datetime().nullable(),
-}));
+}).merge(
+  z.object({
+    createdAt: z.string().datetime(),
+    lastLoginOn: z.string().datetime().nullable(),
+  }),
+);
 
 export const UserLoginDtoSchema = UserSchema.pick({
   email: true,

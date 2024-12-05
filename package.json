@@ -5,12 +5,19 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "yarn dev:frontend & yarn run dev:backend",
+    "dev": "yarn dev:frontend & yarn dev:backend",
     "dev:frontend": "yarn workspace @rplan/frontend dev",
     "dev:backend": "yarn workspace @rplan/backend dev",
-    "prisma": "tsx ./scripts/prisma.ts"
+    "lint": "yarn lint:frontend && yarn lint:backend",
+    "lint:frontend": "yarn workspace @rplan/frontend lint",
+    "lint:backend": "yarn workspace @rplan/backend lint",
+    "prisma": "tsx ./scripts/prisma.ts",
+    "prepare": "husky install"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "husky": "^8.0.0",
     "tsx": "^4.7.1"
   },
   "peerDependencies": {
@@ -20,5 +27,8 @@
   "workspaces": [
     "packages/frontend",
     "packages/backend"
-  ]
+  ],
+  "dependencies": {
+    "lint-staged": "^15.2.10"
+  }
 }

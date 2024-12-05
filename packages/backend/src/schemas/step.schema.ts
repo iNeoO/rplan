@@ -16,13 +16,15 @@ export const PostStepDtoSchema = StepSchema.pick({
   endDate: true,
   createdAt: true,
   updatedAt: true,
-}).merge(z.object({
-  coord: PostCoordDtoSchema.nullable(),
-  startDate: z.string().datetime(),
-  endDate: z.string().datetime(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-}));
+}).merge(
+  z.object({
+    coord: PostCoordDtoSchema.nullable(),
+    startDate: z.string().datetime(),
+    endDate: z.string().datetime(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  }),
+);
 
 export type PostCoordDto = Z.infer<typeof PostStepDtoSchema>;
 
@@ -34,9 +36,11 @@ export const GetStepSchema = StepSchema.pick({
   endDate: true,
   createdAt: true,
   updatedAt: true,
-}).merge(z.object({
-  coord: GetCoordSchema.nullable(),
-}));
+}).merge(
+  z.object({
+    coord: GetCoordSchema.nullable(),
+  }),
+);
 
 export const GetStepReturnSchema = StepSchema.pick({
   id: true,
@@ -46,13 +50,15 @@ export const GetStepReturnSchema = StepSchema.pick({
   endDate: true,
   createdAt: true,
   updatedAt: true,
-}).merge(z.object({
-  coord: GetCoordReturnSchema.nullable(),
-  startDate: z.string().datetime(),
-  endDate: z.string().datetime(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-}));
+}).merge(
+  z.object({
+    coord: GetCoordReturnSchema.nullable(),
+    startDate: z.string().datetime(),
+    endDate: z.string().datetime(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  }),
+);
 
 export const stepSelect = {
   id: true,

@@ -16,21 +16,20 @@ export const createUser = async (userDto: PostUserDto): Promise<User> => {
       email: userDto.email,
       username: userDto.username,
       password: hash,
-      createdAt: new Date().toISOString(),
       isEmailValid: false,
     },
   });
 };
 
-export const getUser = async (
-  {
-    id,
-    email,
-    username,
-  }: UserIdentifications,
-): Promise<User | null> => {
+export const getUser = async ({
+  id,
+  email,
+  username,
+}: UserIdentifications): Promise<User | null> => {
   if (!id && !email && !username) {
-    throw new Error('[🗺️]: - Missing id or email or username when getting user');
+    throw new Error(
+      '[🗺️]: - Missing id or email or username when getting user',
+    );
   }
   const user = prisma.user.findUnique({
     where: { id, email, username },
@@ -38,12 +37,10 @@ export const getUser = async (
   return user;
 };
 
-export const getUserIfPasswordMatch = async (
-  {
-    email,
-    password,
-  }: UserLoginDto,
-): Promise<User | null> => {
+export const getUserIfPasswordMatch = async ({
+  email,
+  password,
+}: UserLoginDto): Promise<User | null> => {
   const user = await prisma.user.findUnique({
     where: { email },
   });
@@ -61,14 +58,18 @@ export const getUserIfPasswordMatch = async (
   return user;
 };
 
-export const updateUserLastLogin = async (id: User['id']) => prisma.user.update({
-  where: { id },
-  data: {
-    lastLoginOn: new Date().toISOString(),
-  },
-});
+export const updateUserLastLogin = async (id: User['id']) =>
+  prisma.user.update({
+    where: { id },
+    data: {
+      lastLoginOn: new Date().toISOString(),
+    },
+  });
 
-export const updateUserPassword = async (id: User['id'], password: User['password']) => {
+export const updateUserPassword = async (
+  id: User['id'],
+  password: User['password'],
+) => {
   const hash = await hashPassword(password);
 
   return prisma.user.update({
@@ -84,11 +85,12 @@ export const updateUserPassword = async (id: User['id'], password: User['passwor
 export const updateUserValidEmail = async (
   id: User['id'],
   isEmailValid: User['isEmailValid'],
-) => prisma.user.update({
-  where: {
-    id,
-  },
-  data: {
-    isEmailValid,
-  },
-});
+) =>
+  prisma.user.update({
+    where: {
+      id,
+    },
+    data: {
+      isEmailValid,
+    },
+  });
