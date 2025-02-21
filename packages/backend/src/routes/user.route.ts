@@ -1,6 +1,6 @@
 import { createRoute } from '@hono/zod-openapi';
-
 import { Prisma, User } from '@prisma/client';
+import { HTTPException } from 'hono/http-exception';
 
 import { createInternalApp } from '../libs/honoCreateApp.ts';
 
@@ -99,22 +99,12 @@ app.openapi(postUserRoute, async c => {
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
-        return c.json(
-          {
-            error: 'Email already exists',
-          },
-          400,
-        );
+        throw new HTTPException(400, { message: 'Email already exists' });
       }
     }
     const logger = c.get('logger');
     logger.error(error);
-    return c.json(
-      {
-        error: 'Server error',
-      },
-      500,
-    );
+    throw new HTTPException(500, { message: 'Server error', cause: error });
   }
   if (token) {
     const invitation = await getInvitation(token);
@@ -306,6 +296,7 @@ app.openapi(resetPassword, async c => {
     );
   }
   if (passwordForgotten.isUsed) {
+    throw new HTTPException(400, { message: 'Token for reset password has already been used' });
     return c.json(
       {
         error: 'Token for reset password has already been used',

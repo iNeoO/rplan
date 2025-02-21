@@ -1,5 +1,7 @@
 import { createRoute } from '@hono/zod-openapi';
 import { setCookie } from 'hono/cookie';
+import { HTTPException } from 'hono/http-exception'
+
 import { createInternalApp } from '../libs/honoCreateApp.ts';
 
 import { LoginSchema, StatusSchema } from '../schemas/auth.schema.ts';
@@ -78,20 +80,10 @@ app.openapi(loginRoute, async c => {
 
   const userChecked = await getUserIfPasswordMatch({ email, password });
   if (!userChecked) {
-    return c.json(
-      {
-        error: 'Wrong credentials',
-      },
-      400,
-    );
+    throw new HTTPException(400, { message: 'Wrong credentials' });
   }
   if (userChecked.isEmailValid) {
-    return c.json(
-      {
-        error: 'You need to confirm email',
-      },
-      401,
-    );
+    throw new HTTPException(401, { message: "email isn't confirmed" });
   }
 
   const user = await updateUserLastLogin(userChecked.id);
@@ -130,12 +122,7 @@ app.openapi(loginRoute, async c => {
   } catch (error) {
     const logger = c.get('logger');
     logger.error('Error creating session:', error);
-    return c.json(
-      {
-        error: 'Internal server error',
-      },
-      500,
-    );
+    throw new HTTPException(500, { message: "Internal server error", cause: error });
   }
 
   return c.json(

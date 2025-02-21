@@ -1,5 +1,5 @@
 import { createFactory } from 'hono/factory';
-
+import { HTTPException } from 'hono/http-exception';
 import type { AuthVariables } from '../interfaces/auth';
 
 import { ErrorSchema } from '../schemas/error.schema.ts';
@@ -18,12 +18,7 @@ export const hasReadPlanPermissionsMiddleware =
     if (permission) {
       next();
     } else {
-      c.json(
-        {
-          error: 'Plan not found',
-        },
-        404,
-      );
+      throw new HTTPException(404, { message: 'Plan not found' });
     }
   });
 
@@ -38,6 +33,7 @@ export const hasWritePlanPermissionsMiddleware =
       if (permission.hasWritePermission) {
         next();
       } else {
+        throw new HTTPException(403, { message: 'Forbidden' });
         c.json(
           {
             error: 'Forbidden',
@@ -46,12 +42,7 @@ export const hasWritePlanPermissionsMiddleware =
         );
       }
     } else {
-      c.json(
-        {
-          error: 'Plan not found',
-        },
-        404,
-      );
+      throw new HTTPException(404, { message: 'Plan not found' });
     }
   });
 

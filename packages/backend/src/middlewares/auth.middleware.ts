@@ -1,5 +1,6 @@
 import { Session } from 'prisma/zod/index.ts';
 import { getCookie, deleteCookie, setCookie } from 'hono/cookie';
+import { HTTPException } from 'hono/http-exception';
 import { createInternalFactory } from '../libs/honoCreateApp.ts';
 import { verify, signAuthCookie } from '../services/jsonwebtoken.service.ts';
 
@@ -18,13 +19,7 @@ export const authMiddleware = authFactory.createMiddleware(async (c, next) => {
       const [err, decoded] = verify(authToken, process.env.AUTH_SECRET_KEY);
       if (err) {
         deleteCookie(c, process.env.COOKIE_AUTH_NAME);
-        return c.json(
-          {
-            error: 'Unauthorized',
-            message: 'Auth token is invalid or expired',
-          },
-          401,
-        );
+        throw new HTTPException(401, { message: 'Unauthorized, Auth token is invalid or expired' });
       }
       c.set('userId', decoded.id);
       return next();
@@ -32,13 +27,7 @@ export const authMiddleware = authFactory.createMiddleware(async (c, next) => {
       const logger = c.get('logger');
       logger.error(error);
       deleteCookie(c, process.env.COOKIE_AUTH_NAME);
-      return c.json(
-        {
-          error: 'Unauthorized',
-          message: 'Auth token is invalid or expired',
-        },
-        401,
-      );
+      throw new HTTPException(401, { message: 'Unauthorized, Auth token is invalid or expired', cause: error });
     }
   }
   const refreshToken = getCookie(c, process.env.COOKIE_REFRESH_NAME);
@@ -48,24 +37,13 @@ export const authMiddleware = authFactory.createMiddleware(async (c, next) => {
       session = await getSession(refreshToken);
       if (session === null) {
         deleteCookie(c, process.env.COOKIE_REFRESH_NAME);
-        return c.json(
-          {
-            error: 'Unauthorized',
-            message: 'Refresh token is invalid or expired',
-          },
-          401,
-        );
+        throw new HTTPException(401, { message: 'Unauthorized, Refresh token is invalid or expired' });
       }
     } catch (error) {
+      deleteCookie(c, process.env.COOKIE_REFRESH_NAME);
       const logger = c.get('logger');
       logger.error(error);
-      deleteCookie(c, process.env.COOKIE_REFRESH_NAME);
-      return c.json(
-        {
-          error: 'Unauthorized',
-        },
-        401,
-      );
+      throw new HTTPException(401, { message: 'Unauthorized', cause: error });
     }
     try {
       const [err, decoded] = verify(
@@ -74,13 +52,7 @@ export const authMiddleware = authFactory.createMiddleware(async (c, next) => {
       );
       if (err) {
         deleteCookie(c, process.env.COOKIE_REFRESH_NAME);
-        return c.json(
-          {
-            error: 'Unauthorized',
-            message: 'Refresh token is invalid or expired',
-          },
-          401,
-        );
+        throw new HTTPException(401, { message: 'Unauthorized, Refresh token is invalid or expired' });
       }
 
       const newAuthTokenDate = new Date(
@@ -111,13 +83,7 @@ export const authMiddleware = authFactory.createMiddleware(async (c, next) => {
       );
     }
   } else {
-    return c.json(
-      {
-        error: 'Unauthorized',
-        message: 'Refresh token is invalid or expired',
-      },
-      401,
-    );
+    throw new HTTPException(401, { message: 'Unauthorized, Refresh token is invalid or expired' });
   }
 });
 

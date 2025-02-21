@@ -1,4 +1,5 @@
 import { createRoute } from '@hono/zod-openapi';
+import { HTTPException } from 'hono/http-exception';
 import { createInternalApp } from '../libs/honoCreateApp.ts';
 import {
   authMiddleware,
@@ -17,6 +18,7 @@ import {
   acceptInvitation,
 } from '../services/invitation.service.ts';
 import { addPermissionForPlan } from '../services/userWithPermissions.service.ts';
+import { handleAsyncQueuedData } from '../utils/handleAsyncQueuedData.ts';
 
 const app = createInternalApp<{ Variables: AuthVariables }>();
 
@@ -57,20 +59,19 @@ app.openapi(acceptInvitationRoute, async c => {
   const invitation = await getInvitation(token);
 
   if (!invitation) {
-    return c.json(
-      {
-        error: 'Invalid invitation',
-      },
-      400,
-    );
+    throw new HTTPException(400, { message: 'Invalid invitation' });
   }
 
-  addPermissionForPlan(
+  const logger = c.get('logger');
+
+  const addPermissionPromise = addPermissionForPlan(
     userId,
     invitation.planId,
     invitation.hasWritePermission,
   );
-  acceptInvitation(token);
+  const acceptInvitationPromise = acceptInvitation(token);
+
+  handleAsyncQueuedData([addPermissionPromise, acceptInvitationPromise], logger);
 
   return c.json(
     {

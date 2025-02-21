@@ -21,16 +21,16 @@ export const hasUserWritePermission = async (
     where: {
       userId_planId: {
         userId,
-        planId,
-      },
+        planId
+      }
     },
     select: {
-      hasWritePermission: true,
-    },
-  });
+      hasWritePermission: true
+    }
+  })
 
-  return permission?.hasWritePermission || false;
-};
+  return permission?.hasWritePermission || false
+}
 
 export const addPermissionForPlan = async (
   userId: User['id'],
@@ -42,12 +42,12 @@ export const addPermissionForPlan = async (
       userId,
       planId,
       hasWritePermission,
-      isCreator: false,
-    },
-  };
+      isCreator: false
+    }
+  }
 
-  return prisma.userWithPermissions.create(newPermission);
-};
+  return prisma.userWithPermissions.create(newPermission)
+}
 
 export const permissions = async (
   planId: Plan['id'],
@@ -55,17 +55,17 @@ export const permissions = async (
 ) => {
   const total = await prisma.userWithPermissions.count({
     where: {
-      planId,
-    },
-  });
+      planId
+    }
+  })
 
   const { sort, order, offset, limit } = params;
 
-  const sortParsed = stringToNestedObject(sort, order);
+  const sortParsed = stringToNestedObject(sort, order)
 
   const results = await prisma.userWithPermissions.findMany({
     where: {
-      planId,
+      planId
     },
     select: {
       hasWritePermission: true,
@@ -75,19 +75,19 @@ export const permissions = async (
       user: {
         select: {
           id: true,
-          username: true,
-        },
-      },
+          username: true
+        }
+      }
     },
     orderBy: sortParsed,
     skip: offset,
-    take: limit,
-  });
+    take: limit
+  })
 
   return {
     total,
     limit,
     offset,
-    permissions: results,
-  };
-};
+    permissions: results
+  }
+}
