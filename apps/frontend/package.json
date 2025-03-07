@@ -1,0 +1,26 @@
+{
+  "name": "@rplan/frontend",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "rm -rf /tmp/nitro && nuxt dev",
+    "generate": "nuxt generate",
+    "lint": "eslint --fix ./src",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/eslint": "^0.7.2",
+    "nuxt": "^3.12.4",
+    "vue": "latest"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "@types/eslint-config-prettier": "^6.11.3",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-vue": "^9.32.0",
+    "prettier": "3.4.2"
+  }
+}

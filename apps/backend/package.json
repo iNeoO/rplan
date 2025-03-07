@@ -1,0 +1,40 @@
+{
+  "name": "@rplan/backend",
+  "module": "index.ts",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch ./src ",
+    "lint": "biome check ./src/",
+    "generate-schema": "node openapi-typescript http://localhost:3000/doc -o ./schema.d.ts",
+    "test": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@hono/swagger-ui": "^0.4.1",
+    "@hono/zod-openapi": "^0.18.0",
+    "@rplan/database": "workspace:*",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.12.3",
+    "argon2": "^0.41.1",
+    "hono": "^4.6.12",
+    "hono-pino": "^0.7.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.13",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "zod-openapi": "^4.2.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/nodemailer": "^6.4.14",
+    "globals": "^15.9.0",
+    "openapi-typescript": "^6.7.5",
+    "tsx": "^4.7.1",
+    "typescript": "^5.5.4",
+    "vitest": "^1.5.1",
+    "vitest-mock-extended": "^1.3.1"
+  }
+}

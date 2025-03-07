@@ -1,15 +1,13 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: rplan-db-dev
+    container_name: rplan-db-prod
     environment:
       POSTGRES_USER: ${PG_RPLAN_USER}
       POSTGRES_PASSWORD: ${PG_RPLAN_PASSWORD}
       POSTGRES_DB: ${PG_DB}
     ports:
       - "${PG_PORT}:5432"
-    networks:
-      - rplan-network
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,32 +15,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  database:
-    container_name: rplan-database-dev
+  migrate:
+    container_name: rplan-migrate-prod
     build:
-      dockerfile: ./packages/database/Dockerfile
+      dockerfile: ./packages/database/Dockerfile.prod
     depends_on:
-      - postgres
-    ports:
-      - "4015:5555"
+      postgres:
+        condition: service_started
     networks:
       - rplan-network
-    env_file:
-      - ./.env
     environment:
       PG_URL: postgresql://${PG_RPLAN_USER}:${PG_RPLAN_PASSWORD}@postgres:5432/${PG_DB}
   backend:
-    container_name: rplan-backend-dev
+    container_name: rplan-backen-prod
     build:
-      dockerfile: ./apps/backend/Dockerfile
+      dockerfile: ./apps/backend/Dockerfile.prod
     depends_on:
-      - postgres
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "4010:4000"
-    networks:
-      - rplan-network
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PG_URL: postgresql://${PG_RPLAN_USER}:${PG_RPLAN_PASSWORD}@postgres:5432/${PG_DB}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
@@ -58,39 +52,16 @@ services:
       COOKIE_REFRESH_NAME: ${COOKIE_REFRESH_NAME}
       COOKIE_REFRESH_EXPIRATION: ${COOKIE_REFRESH_EXPIRATION}
       REFRESH_SECRET_KEY: ${REFRESH_SECRET_KEY}
-    develop:
-      watch:
-        - action: sync
-          path: ./apps/backend
-          target: /app/apps/backend
-          ignore:
-            - node_modules/
-        - action: rebuild
-          path: ./packages/database/prisma/schema.prisma
-        - action: rebuild
-          path: package.json
-        - action: rebuild
-          path: ./apps/backend/package.json
 
-  # frontend:
-  #   container_name: rplan-frontend-dev
-  #   build:
-  #     dockerfile: ./apps/frontend/Dockerfile
-  #   depends_on:
-  #     - backend
-  #   ports:
-  #     - "4000:3000"
-  #   develop:
-  #     watch:
-  #       - action: sync
-  #         path: ./apps/frontend
-  #         target: /app/apps/frontend
-  #         ignore:
-  #           - node_modules/
-  #       - action: rebuild
-  #         path: package.json
-  #       - action: rebuild
-  #         path: ./apps/frontend/package.json
+  frontend:
+    container_name: rplan-frontend-prod
+    build:
+      dockerfile: ./apps/frontend/Dockerfile.prod
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "4000:3000"
 
   maildev:
     image: maildev/maildev:2.1.0

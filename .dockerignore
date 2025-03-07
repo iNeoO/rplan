@@ -1,0 +1,17 @@
+Dockerfile*
+docker-compose*
+.dockerignore
+node_modules
+packages/**/node_modules
+common/**/node_modules
+packages/**/Dockerfile*
+common/**/Dockerfile*
+npm-debug.log
+
+dist
+.git
+.gitignore
+**/*.md
+dist
+.husky
+commitlint.config.js
