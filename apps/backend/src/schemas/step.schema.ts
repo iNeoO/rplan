@@ -23,7 +23,7 @@ export const PostStepDtoSchema = StepSchema.pick({
   }),
 );
 
-export type PostCoordDto = Z.infer<typeof PostStepDtoSchema>;
+export type PostStepDto = Z.infer<typeof PostStepDtoSchema>;
 
 export const GetStepSchema = StepSchema.pick({
   id: true,
