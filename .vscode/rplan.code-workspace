@@ -1,0 +1,21 @@
+{
+  "folders": [
+    {
+      "name": "RPLAN",
+      "path": "../"
+    },
+    {
+      "name": "apps/backend",
+      "path": "../apps/backend"
+    },
+    {
+      "name": "apps/frontend",
+      "path": "../apps/frontend"
+    },
+    {
+      "name": "packages/database",
+      "path": "../packages/database"
+    }
+  ],
+  "settings": {}
+}

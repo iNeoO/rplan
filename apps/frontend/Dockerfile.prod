@@ -1,0 +1,38 @@
+FROM node:23-alpine AS prod-base
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+FROM frontend-prod-base AS frontend-prod-deps
+
+WORKDIR /app
+
+COPY package*.json pnpm* ./
+COPY ./apps/frontend/package.json apps/frontend/
+
+RUN pnpm install --filter nuxt-frontend --frozen-lockfile
+
+# Build stage
+FROM frontend-prod-base AS frontend-prod-build
+
+WORKDIR /app
+
+COPY --from=frontend-prod-deps /app/node_modules ./node_modules
+COPY --from=frontend-prod-deps /app/apps/frontend/node_modules ./apps/frontend/node_modules
+COPY ./apps/frontend apps/frontend
+
+RUN pnpm --filter frontend run build
+
+# Runtime stage
+FROM frontend-prod-base AS frontend-prod-runtime
+
+USER node
+WORKDIR /app
+
+COPY --from=frontend-prod-build --chown=node:node /app/apps/frontend/.output  .
+
+ENV NODE_ENV=production
+
+ENV NITRO_HOST=0.0.0.0
+ENV NITRO_PORT=3000
+
+CMD ["node", "server/index.mjs"]

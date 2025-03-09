@@ -1,16 +1,19 @@
 {
   "name": "rplan",
-  "module": "index.ts",
   "type": "module",
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "yarn dev:frontend & yarn dev:backend",
-    "dev:frontend": "yarn workspace @rplan/frontend dev",
-    "dev:backend": "yarn workspace @rplan/backend dev",
-    "lint": "yarn lint:frontend && yarn lint:backend",
-    "lint:frontend": "yarn workspace @rplan/frontend lint",
-    "lint:backend": "yarn workspace @rplan/backend lint",
+    "dev": "pnpm dev:frontend & pnpm dev:backend",
+    "dev:frontend": "pnpm --filter @rplan/frontend dev",
+    "dev:backend": "pnpm --filter @rplan/backend dev",
+    "db:studio": "pnpm --filter @rplan/database studio",
+    "db:migrate": "pnpm --filter @rplan/database migrate:dev",
+    "db:deploy": "pnpm --filter @rplan/database migrate:deploy",
+    "db:generate": "pnpm --filter @rplan/database generate",
+    "lint": "pnpm lint:frontend && pnpm lint:backend",
+    "lint:frontend": "pnpm --filter @rplan/frontend lint",
+    "lint:backend": "pnpm --filter @rplan/backend lint",
     "prisma": "tsx ./scripts/prisma.ts",
     "prepare": "husky install"
   },
@@ -25,11 +28,11 @@
   },
   "private": true,
   "workspaces": [
-    "packages/frontend",
-    "packages/backend"
+    "packages/*",
+    "apps/*"
   ],
   "dependencies": {
     "lint-staged": "^15.2.10"
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "pnpm@10.5.2"
 }

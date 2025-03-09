@@ -1,0 +1,15 @@
+{
+  "preserveWatchOutput": true,
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx"
+  }
+}
