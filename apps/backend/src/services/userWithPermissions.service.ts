@@ -1,9 +1,9 @@
-import db from '@rplan/database';
+import { type Plan, type User, type UserWithPermissions, prisma } from '@rplan/database';
 import { stringToNestedObject } from '../schemas/common.schema.ts';
 import type { PermissionsWithPaginationPayload } from '../schemas/userWithPermission.schema.ts';
 
-export const userPermission = async (userId: db.User['id'], planId: db.Plan['id']) =>
-  db.prisma.userWithPermissions.findUnique({
+export const userPermission = async (userId: User['id'], planId: Plan['id']) =>
+  prisma.userWithPermissions.findUnique({
     where: {
       userId_planId: {
         userId,
@@ -12,8 +12,8 @@ export const userPermission = async (userId: db.User['id'], planId: db.Plan['id'
     },
   });
 
-export const hasUserWritePermission = async (userId: db.User['id'], planId: db.Plan['id']) => {
-  const permission = await db.prisma.userWithPermissions.findUnique({
+export const hasUserWritePermission = async (userId: User['id'], planId: Plan['id']) => {
+  const permission = await prisma.userWithPermissions.findUnique({
     where: {
       userId_planId: {
         userId,
@@ -29,9 +29,9 @@ export const hasUserWritePermission = async (userId: db.User['id'], planId: db.P
 };
 
 export const addPermissionForPlan = async (
-  userId: db.User['id'],
-  planId: db.Plan['id'],
-  hasWritePermission: db.UserWithPermissions['hasWritePermission'],
+  userId: User['id'],
+  planId: Plan['id'],
+  hasWritePermission: UserWithPermissions['hasWritePermission'],
 ) => {
   const newPermission = {
     data: {
@@ -42,11 +42,11 @@ export const addPermissionForPlan = async (
     },
   };
 
-  return db.prisma.userWithPermissions.create(newPermission);
+  return prisma.userWithPermissions.create(newPermission);
 };
 
-export const permissions = async (planId: db.Plan['id'], params: PermissionsWithPaginationPayload) => {
-  const total = await db.prisma.userWithPermissions.count({
+export const permissions = async (planId: Plan['id'], params: PermissionsWithPaginationPayload) => {
+  const total = await prisma.userWithPermissions.count({
     where: {
       planId,
     },
@@ -56,7 +56,7 @@ export const permissions = async (planId: db.Plan['id'], params: PermissionsWith
 
   const sortParsed = stringToNestedObject(sort, order);
 
-  const results = await db.prisma.userWithPermissions.findMany({
+  const results = await prisma.userWithPermissions.findMany({
     where: {
       planId,
     },

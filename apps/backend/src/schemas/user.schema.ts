@@ -1,7 +1,7 @@
 import { z } from '@hono/zod-openapi';
 import type { z as Z } from '@hono/zod-openapi';
-import type db from '@rplan/database';
-import zod from '@rplan/database/generated/zod/index.ts';
+import type { User } from '@rplan/database';
+import zod from '@rplan/database/zod';
 
 export const UserSchema = z.object(zod.UserSchema.shape);
 
@@ -28,7 +28,7 @@ export const PostUserSchema = UserSchema.pick({
   }),
 );
 
-export type UserIdentifications = Partial<Pick<db.User, 'id' | 'email' | 'username'>>;
+export type UserIdentifications = Partial<Pick<User, 'id' | 'email' | 'username'>>;
 
 export const GetUserSchema = UserSchema.pick({
   id: true,

@@ -1,7 +1,7 @@
 import { z } from '@hono/zod-openapi';
 import type { z as Z } from '@hono/zod-openapi';
-import type db from '@rplan/database';
-import zod from '@rplan/database/generated/zod/index.ts';
+import type { Prisma } from '@rplan/database';
+import zod from '@rplan/database/zod';
 import { GetCoordReturnSchema, GetCoordSchema, PostCoordDtoSchema, coordSelect } from './coord.schema.ts';
 
 export const StepSchema = z.object(zod.StepSchema.shape);
@@ -23,7 +23,7 @@ export const PostStepDtoSchema = StepSchema.pick({
   }),
 );
 
-export type PostCoordDto = Z.infer<typeof PostStepDtoSchema>;
+export type PostStepDto = Z.infer<typeof PostStepDtoSchema>;
 
 export const GetStepSchema = StepSchema.pick({
   id: true,
@@ -66,4 +66,4 @@ export const stepSelect = {
   createdAt: true,
   updatedAt: true,
   coord: { select: coordSelect },
-} satisfies db.Prisma.StepSelect;
+} satisfies Prisma.StepSelect;

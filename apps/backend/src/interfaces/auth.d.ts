@@ -1,3 +1,3 @@
-import type db from '@rplan/database';
+import type { User } from '@rplan/database';
 
-export type AuthVariables = { userId: db.User['id'] };
+export type AuthVariables = { userId: User['id'] };

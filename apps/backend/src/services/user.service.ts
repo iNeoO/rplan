@@ -1,12 +1,12 @@
-import db from '@rplan/database';
+import { type User, prisma } from '@rplan/database';
 import type { PostUserDto, UserIdentifications, UserLoginDto } from '../schemas/user.schema.ts';
 
 import { compareHash, hashPassword } from './crypt.service.ts';
 
-export const createUser = async (userDto: PostUserDto): Promise<db.User> => {
+export const createUser = async (userDto: PostUserDto): Promise<User> => {
   const hash = await hashPassword(userDto.password);
 
-  return db.prisma.user.create({
+  return prisma.user.create({
     data: {
       email: userDto.email,
       username: userDto.username,
@@ -16,18 +16,18 @@ export const createUser = async (userDto: PostUserDto): Promise<db.User> => {
   });
 };
 
-export const getUser = async ({ id, email, username }: UserIdentifications): Promise<db.User | null> => {
+export const getUser = async ({ id, email, username }: UserIdentifications): Promise<User | null> => {
   if (!id && !email && !username) {
     throw new Error('[🗺️]: - Missing id or email or username when getting user');
   }
-  const user = db.prisma.user.findUnique({
+  const user = prisma.user.findUnique({
     where: { id, email, username },
   });
   return user;
 };
 
-export const getUserIfPasswordMatch = async ({ email, password }: UserLoginDto): Promise<db.User | null> => {
-  const user = await db.prisma.user.findUnique({
+export const getUserIfPasswordMatch = async ({ email, password }: UserLoginDto): Promise<User | null> => {
+  const user = await prisma.user.findUnique({
     where: { email },
   });
 
@@ -44,18 +44,18 @@ export const getUserIfPasswordMatch = async ({ email, password }: UserLoginDto):
   return user;
 };
 
-export const updateUserLastLogin = async (id: db.User['id']) =>
-  db.prisma.user.update({
+export const updateUserLastLogin = async (id: User['id']) =>
+  prisma.user.update({
     where: { id },
     data: {
       lastLoginOn: new Date().toISOString(),
     },
   });
 
-export const updateUserPassword = async (id: db.User['id'], password: db.User['password']) => {
+export const updateUserPassword = async (id: User['id'], password: User['password']) => {
   const hash = await hashPassword(password);
 
-  return db.prisma.user.update({
+  return prisma.user.update({
     where: {
       id,
     },
@@ -65,8 +65,8 @@ export const updateUserPassword = async (id: db.User['id'], password: db.User['p
   });
 };
 
-export const updateUserValidEmail = async (id: db.User['id'], isEmailValid: db.User['isEmailValid']) =>
-  db.prisma.user.update({
+export const updateUserValidEmail = async (id: User['id'], isEmailValid: User['isEmailValid']) =>
+  prisma.user.update({
     where: {
       id,
     },

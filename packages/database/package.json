@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "license": "MIT",
   "description": "",
-  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./zod": "./zod.ts"
+  },
   "scripts": {
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
@@ -21,11 +24,8 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@types/node": "^20.12.3",
-    "install": "^0.13.0",
     "pnpm": "^10.5.2",
     "prisma": "^6.4.1",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2",
     "zod-prisma-types": "^3.2.4"
   }
 }

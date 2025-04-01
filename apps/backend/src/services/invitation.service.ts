@@ -1,4 +1,4 @@
-import db from '@rplan/database';
+import { type Invitation, prisma } from '@rplan/database';
 import type { CreateInvitationByEmailPayload, CreateInvitationByLinkPayload } from '../schemas/invitation.schema.ts';
 import type { InvitationsWithPaginationPayload } from '../schemas/invitation.schema.ts';
 
@@ -9,7 +9,7 @@ const addDays = (date: Date, days: number) => {
 };
 
 export const createInvitationByEmail = async (invitationPayload: CreateInvitationByEmailPayload) =>
-  db.prisma.invitation.create({
+  prisma.invitation.create({
     data: {
       ...invitationPayload,
       invitationType: 'EMAIL',
@@ -18,7 +18,7 @@ export const createInvitationByEmail = async (invitationPayload: CreateInvitatio
   });
 
 export const createInvitationByLink = async (invitationPayload: CreateInvitationByLinkPayload) =>
-  db.prisma.invitation.create({
+  prisma.invitation.create({
     data: {
       ...invitationPayload,
       invitationType: 'LINK',
@@ -26,15 +26,15 @@ export const createInvitationByLink = async (invitationPayload: CreateInvitation
     },
   });
 
-export const getInvitation = async (token: db.Invitation['token']) =>
-  db.prisma.invitation.findUnique({
+export const getInvitation = async (token: Invitation['token']) =>
+  prisma.invitation.findUnique({
     where: {
       token,
     },
   });
 
-export const acceptInvitation = async (token: db.Invitation['token']) =>
-  db.prisma.invitation.update({
+export const acceptInvitation = async (token: Invitation['token']) =>
+  prisma.invitation.update({
     where: {
       token,
     },
@@ -44,8 +44,8 @@ export const acceptInvitation = async (token: db.Invitation['token']) =>
     },
   });
 
-export const invitations = async (planId: db.Invitation['planId'], params: InvitationsWithPaginationPayload) => {
-  const total = await db.prisma.invitation.count({
+export const invitations = async (planId: Invitation['planId'], params: InvitationsWithPaginationPayload) => {
+  const total = await prisma.invitation.count({
     where: {
       planId,
     },
@@ -53,7 +53,7 @@ export const invitations = async (planId: db.Invitation['planId'], params: Invit
 
   const { sort, order, offset, limit } = params;
 
-  const results = await db.prisma.invitation.findMany({
+  const results = await prisma.invitation.findMany({
     where: {
       planId,
     },

@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi';
-import type db from '@rplan/database';
-import zod from '@rplan/database/generated/zod/index.ts';
+import type { Prisma } from '@rplan/database';
+import zod from '@rplan/database/zod';
 
 export const CoordSchema = z.object(zod.CoordSchema.shape);
 
@@ -42,4 +42,4 @@ export const coordSelect = {
   postalCode: true,
   createdAt: true,
   updatedAt: true,
-} satisfies db.Prisma.CoordSelect;
+} satisfies Prisma.CoordSelect;

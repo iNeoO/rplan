@@ -1,4 +1,4 @@
-import type db from '@rplan/database';
+import type { Session } from '@rplan/database';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
 import { createInternalFactory } from '../libs/honoCreateApp.ts';
@@ -37,7 +37,7 @@ export const authMiddleware = authFactory.createMiddleware(async (c, next) => {
   }
   const refreshToken = getCookie(c, process.env.COOKIE_REFRESH_NAME);
   if (refreshToken) {
-    let session: db.Session | null = null;
+    let session: Session | null = null;
     try {
       session = await getSession(refreshToken);
       if (session === null) {

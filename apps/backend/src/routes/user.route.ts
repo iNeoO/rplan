@@ -1,5 +1,5 @@
 import { createRoute } from '@hono/zod-openapi';
-import db from '@rplan/database';
+import { Prisma, type User } from '@rplan/database';
 import { HTTPException } from 'hono/http-exception';
 
 import { createInternalApp } from '../libs/honoCreateApp.ts';
@@ -76,11 +76,11 @@ const postUserRoute = createRoute({
 
 app.openapi(postUserRoute, async (c) => {
   const { username, password, email, token } = c.req.valid('json');
-  let newUser: db.User;
+  let newUser: User;
   try {
     newUser = await createUser({ username, password, email });
   } catch (error) {
-    if (error instanceof db.Prisma.PrismaClientKnownRequestError) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         throw new HTTPException(400, { message: 'Email already exists' });
       }

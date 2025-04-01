@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi';
 import type { z as Z } from '@hono/zod-openapi';
-import zod from '@rplan/database/generated/zod/index.ts';
+import zod from '@rplan/database/zod';
 
 export const SessionSchema = z.object(zod.SessionSchema.shape);
 

@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi';
-import type db from '@rplan/database';
-import zod from '@rplan/database/generated/zod/index.ts';
+import type { Prisma } from '@rplan/database';
+import zod from '@rplan/database/zod';
 import type { PaginationQueryPayload } from './common.schema.ts';
 import { GetUserSchema, UserSchema } from './user.schema.ts';
 
@@ -35,7 +35,7 @@ export const userSelect = {
       username: true,
     },
   },
-} satisfies db.Prisma.UserWithPermissionsSelect;
+} satisfies Prisma.UserWithPermissionsSelect;
 
 export const permissionsColumns = [
   'user.id',

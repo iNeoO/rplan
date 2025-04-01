@@ -1,10 +1,10 @@
-import db from '@rplan/database';
+import { type PasswordForgotten, type User, prisma } from '@rplan/database';
 
 import { signPasswordForgotten } from './jsonwebtoken.service.ts';
 
-export const createPasswordForgotten = async (userId: db.User['id']) => {
+export const createPasswordForgotten = async (userId: User['id']) => {
   const token = signPasswordForgotten(userId);
-  return db.prisma.passwordForgotten.create({
+  return prisma.passwordForgotten.create({
     data: {
       userId,
       token,
@@ -13,18 +13,15 @@ export const createPasswordForgotten = async (userId: db.User['id']) => {
   });
 };
 
-export const getPasswordForgotten = (token: db.PasswordForgotten['token']) =>
-  db.prisma.passwordForgotten.findUnique({
+export const getPasswordForgotten = (token: PasswordForgotten['token']) =>
+  prisma.passwordForgotten.findUnique({
     where: {
       token,
     },
   });
 
-export const updateIsUsedPasswordForgotten = (
-  token: db.PasswordForgotten['token'],
-  isUsed: db.PasswordForgotten['isUsed'],
-) =>
-  db.prisma.passwordForgotten.update({
+export const updateIsUsedPasswordForgotten = (token: PasswordForgotten['token'], isUsed: PasswordForgotten['isUsed']) =>
+  prisma.passwordForgotten.update({
     where: {
       token,
     },
@@ -33,8 +30,8 @@ export const updateIsUsedPasswordForgotten = (
     },
   });
 
-export const deletePasswordForgotten = (token: db.PasswordForgotten['token']) =>
-  db.prisma.passwordForgotten.delete({
+export const deletePasswordForgotten = (token: PasswordForgotten['token']) =>
+  prisma.passwordForgotten.delete({
     where: {
       token,
     },

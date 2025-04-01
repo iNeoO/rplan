@@ -1,7 +1,7 @@
 import { z } from '@hono/zod-openapi';
 import type { z as Z } from '@hono/zod-openapi';
-import type db from '@rplan/database';
-import zod from '@rplan/database/generated/zod/index.ts';
+import type { Prisma } from '@rplan/database';
+import zod from '@rplan/database/zod';
 import { GetStepReturnSchema, GetStepSchema, PostStepDtoSchema, stepSelect } from './step.schema.ts';
 import { GetUserWithPermission, GetUserWithPermissionReturn, userSelect } from './userWithPermission.schema.ts';
 
@@ -81,7 +81,7 @@ export const planSelect = {
   updatedAt: true,
   steps: { select: stepSelect },
   users: { select: userSelect },
-} satisfies db.Prisma.PlanSelect;
+} satisfies Prisma.PlanSelect;
 
 export const plansSelect = {
   id: true,
@@ -96,4 +96,4 @@ export const plansSelect = {
       steps: true,
     },
   },
-} satisfies db.Prisma.PlanSelect;
+} satisfies Prisma.PlanSelect;

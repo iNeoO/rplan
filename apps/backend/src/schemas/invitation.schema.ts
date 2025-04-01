@@ -1,5 +1,5 @@
 import { z } from '@hono/zod-openapi';
-import zod from '@rplan/database/generated/zod/index.ts';
+import zod from '@rplan/database/zod';
 import type { PaginationQueryPayload } from './common.schema.ts';
 import { UserSchema } from './user.schema.ts';
 

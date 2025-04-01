@@ -1,13 +1,13 @@
-import db from '@rplan/database';
+import { type Plan, type Prisma, type User, prisma } from '@rplan/database';
 
 import { type PostPlanDto, planSelect, type plansSelect } from '../schemas/plan.schema.ts';
 
-type MyPlanPayload = db.Prisma.PlanGetPayload<{ select: typeof planSelect }>;
-type MyPlansPayload = db.Prisma.PlanGetPayload<{
+type MyPlanPayload = Prisma.PlanGetPayload<{ select: typeof planSelect }>;
+type MyPlansPayload = Prisma.PlanGetPayload<{
   select: typeof plansSelect;
 }>[];
 
-export const createPlan = async (userId: db.User['id'], planDto: PostPlanDto) => {
+export const createPlan = async (userId: User['id'], planDto: PostPlanDto) => {
   const newPlan = {
     data: {
       ...planDto,
@@ -31,11 +31,11 @@ export const createPlan = async (userId: db.User['id'], planDto: PostPlanDto) =>
     select: planSelect,
   };
 
-  return db.prisma.plan.create(newPlan);
+  return prisma.plan.create(newPlan);
 };
 
-export const getPlans = async (userId: db.User['id']) =>
-  db.prisma.plan.findMany({
+export const getPlans = async (userId: User['id']) =>
+  prisma.plan.findMany({
     where: {
       users: {
         every: {
@@ -59,8 +59,8 @@ export const getPlans = async (userId: db.User['id']) =>
     },
   });
 
-export const getPlan = async (userId: db.User['id'], id: db.Plan['id']) =>
-  db.prisma.plan.findUnique({
+export const getPlan = async (userId: User['id'], id: Plan['id']) =>
+  prisma.plan.findUnique({
     where: {
       id,
       users: {
